@@ -18,7 +18,7 @@ config({ path: '.env.local' });
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { notInArray } from 'drizzle-orm';
+import { notInArray, sql } from 'drizzle-orm';
 import * as simpleIcons from 'simple-icons';
 
 import { categories, logos } from './schema';
@@ -97,55 +97,71 @@ async function seed(): Promise<void> {
   const db = drizzle(client);
 
   try {
-    let logoCount = 0;
-    const keptSlugs: string[] = [];
+    // Everything below runs as a handful of bulk statements rather than one query
+    // per row: with a database on another continent each round trip costs real
+    // time, and 375 sequential upserts would take minutes.
 
-    for (const [index, category] of CATALOG.entries()) {
-      // Upsert the category and get its row ID back.
-      const [row] = await db
-        .insert(categories)
-        .values({ slug: category.slug, name: category.name, sortOrder: index })
-        .onConflictDoUpdate({
-          target: categories.slug,
-          set: { name: category.name, sortOrder: index },
-        })
-        .returning({ id: categories.id });
+    // 1. Upsert all categories in a single statement, keeping their IDs stable.
+    const categoryRows = await db
+      .insert(categories)
+      .values(
+        CATALOG.map((category, index) => ({
+          slug: category.slug,
+          name: category.name,
+          sortOrder: index,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: categories.slug,
+        set: { name: sql`excluded.name`, sortOrder: sql`excluded.sort_order` },
+      })
+      .returning({ id: categories.id, slug: categories.slug });
 
-      // Upsert every logo in the category.
-      for (const slug of category.logos) {
+    const categoryIdBySlug = new Map(categoryRows.map((row) => [row.slug, row.id]));
+
+    // 2. Flatten the catalog into logo rows.
+    const logoValues = CATALOG.flatMap((category) =>
+      category.logos.map((slug) => {
         const icon = ICONS_BY_SLUG.get(slug)!;
-        const values = {
-          categoryId: row.id,
+        return {
+          categoryId: categoryIdBySlug.get(category.slug)!,
           slug,
           name: icon.title,
           imageUrl: logoImageUrl(slug),
           difficulty: difficultyFor(slug),
           acceptedAnswers: ACCEPTED_ALIASES[slug] ?? [],
         };
+      })
+    );
 
-        await db
-          .insert(logos)
-          .values(values)
-          .onConflictDoUpdate({ target: logos.slug, set: values });
+    // 3. Upsert them all at once.
+    await db
+      .insert(logos)
+      .values(logoValues)
+      .onConflictDoUpdate({
+        target: logos.slug,
+        set: {
+          categoryId: sql`excluded.category_id`,
+          name: sql`excluded.name`,
+          imageUrl: sql`excluded.image_url`,
+          difficulty: sql`excluded.difficulty`,
+          acceptedAnswers: sql`excluded.accepted_answers`,
+        },
+      });
 
-        keptSlugs.push(slug);
-        logoCount++;
-      }
+    // 4. Drop anything that used to be in the catalog but no longer is.
+    const removed = await db
+      .delete(logos)
+      .where(notInArray(logos.slug, logoValues.map((row) => row.slug)))
+      .returning({ slug: logos.slug });
 
+    await db.delete(categories).where(notInArray(categories.slug, CATALOG.map((c) => c.slug)));
+
+    for (const category of CATALOG) {
       console.log(`  ${category.name.padEnd(22)} ${category.logos.length} logos`);
     }
 
-    // Drop anything that used to be in the catalog but no longer is.
-    const removed = await db
-      .delete(logos)
-      .where(notInArray(logos.slug, keptSlugs))
-      .returning({ slug: logos.slug });
-
-    // Same for categories, matched on the slugs still present in the catalog.
-    const catalogCategorySlugs = CATALOG.map((c) => c.slug);
-    await db.delete(categories).where(notInArray(categories.slug, catalogCategorySlugs));
-
-    console.log(`\nSeeded ${CATALOG.length} categories and ${logoCount} logos.`);
+    console.log(`\nSeeded ${CATALOG.length} categories and ${logoValues.length} logos.`);
     if (removed.length > 0) {
       console.log(`Removed ${removed.length} stale logos: ${removed.map((r) => r.slug).join(', ')}`);
     }
