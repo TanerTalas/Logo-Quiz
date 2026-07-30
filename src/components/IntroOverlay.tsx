@@ -2,12 +2,16 @@
 
 /**
  * Intro Overlay Component
- * 
+ *
  * Renders the introductory animated curtain showcase featuring brand tile shuffling,
  * staggered typography reveals ("LOGO QUIZ"), and a split-curtain exit animation.
+ *
+ * The markup stays mounted and hidden behind `display: none` instead of being
+ * conditionally rendered: the whole sequence is driven by direct DOM writes, so every
+ * ref has to exist before the first frame runs.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { getDocumentNavigationType, isDocumentEntry } from '@/lib/navigation';
 import { getLogoUrl } from '@/lib/gameData';
 
@@ -41,9 +45,6 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
   cycleMs = 3600,
   holdMs = 700,
 }) => {
-  const [active, setActive] = useState<boolean>(false);
-  const [currentBrandSlug, setCurrentBrandSlug] = useState<string>(BRAND_SLUGS[0]);
-
   // DOM element refs for animation manipulation
   const overlayRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
@@ -62,6 +63,9 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
   const rafRef = useRef<number | null>(null);
   const isDoneRef = useRef<boolean>(false);
 
+  // Brand logos kept in memory so the shuffle never waits on a network round trip
+  const preloadedRef = useRef<HTMLImageElement[]>([]);
+
   const clearTimers = () => {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
@@ -69,6 +73,19 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+  };
+
+  /**
+   * Warms the browser cache for every brand tile shown during the shuffle.
+   */
+  const preloadBrandLogos = () => {
+    if (preloadedRef.current.length > 0) return;
+
+    preloadedRef.current = BRAND_SLUGS.map((slug) => {
+      const image = new Image();
+      image.src = getLogoUrl(slug);
+      return image;
+    });
   };
 
   const finish = (fast: boolean = false) => {
@@ -103,11 +120,14 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
 
     const t2 = setTimeout(() => {
       if (overlayRef.current) overlayRef.current.style.display = 'none';
-      setActive(false);
     }, fadeMs + splitMs + 40);
     timersRef.current.push(t2);
   };
 
+  /**
+   * Reveals the overlay and puts every animated element back to its starting pose:
+   * letters hidden below the baseline, rule collapsed, byline down and faded out.
+   */
   const resetStyles = () => {
     clearTimers();
     isDoneRef.current = false;
@@ -163,7 +183,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
   };
 
   const playSequence = () => {
-    setActive(true);
+    preloadBrandLogos();
     resetStyles();
 
     const duration = Math.max(1200, cycleMs);
@@ -174,6 +194,11 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
     let lastTime = t0;
     let shownIdx = -1;
 
+    /**
+     * Slot machine style brand shuffle: accelerates, holds at full speed, then eases
+     * down to a stop. The tile image is written to directly — going through React state
+     * would mean a re-render on every single frame.
+     */
     const spin = (now: number) => {
       const elapsed = now - t0;
       const dt = Math.min(60, now - lastTime);
@@ -193,9 +218,10 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
       accum += (speedFactor * dt) / 1000;
       const idx = Math.floor(accum) % BRAND_SLUGS.length;
 
-      if (idx !== shownIdx) {
+      if (imgRef.current && idx !== shownIdx) {
         shownIdx = idx;
-        setCurrentBrandSlug(BRAND_SLUGS[idx]);
+        imgRef.current.src = getLogoUrl(BRAND_SLUGS[idx]);
+        imgRef.current.alt = BRAND_SLUGS[idx];
       }
 
       if (imgRef.current) {
@@ -220,6 +246,10 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
       }
     };
 
+    /**
+     * Typography reveal once the shuffle lands: letters rise in one by one, the rule
+     * sweeps out, the byline fades up, then the curtain splits open.
+     */
     const revealSequence = () => {
       if (counterRef.current) {
         counterRef.current.style.transition = 'opacity 0.35s ease';
@@ -297,8 +327,6 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cycleMs, holdMs]);
 
-  if (!active) return null;
-
   const logoLetters = ['L', 'O', 'G', 'O'];
   const quizLetters = ['Q', 'U', 'I', 'Z'];
 
@@ -310,6 +338,8 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
         inset: 0,
         zIndex: 900,
         overflow: 'hidden',
+        // Hidden until the sequence starts, and hidden again once the curtain is gone
+        display: 'none',
       }}
     >
       {/* Top split curtain panel */}
@@ -372,11 +402,12 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
               willChange: 'transform',
             }}
           >
+            {/* Source is swapped frame by frame by the shuffle loop */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={imgRef}
-              src={getLogoUrl(currentBrandSlug)}
-              alt={currentBrandSlug}
+              src={getLogoUrl(BRAND_SLUGS[0])}
+              alt={BRAND_SLUGS[0]}
               style={{
                 width: '58%',
                 height: '58%',
