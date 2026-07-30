@@ -8,13 +8,12 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { getIntroSeen, setIntroSeen } from '@/lib/storage';
+import { getDocumentNavigationType, isDocumentEntry } from '@/lib/navigation';
 import { getLogoUrl } from '@/lib/gameData';
 
 export interface IntroOverlayProps {
   cycleMs?: number;
   holdMs?: number;
-  once?: boolean;
 }
 
 const BRAND_SLUGS = [
@@ -41,7 +40,6 @@ const BRAND_SLUGS = [
 export const IntroOverlay: React.FC<IntroOverlayProps> = ({
   cycleMs = 3600,
   holdMs = 700,
-  once = true,
 }) => {
   const [active, setActive] = useState<boolean>(false);
   const [currentBrandSlug, setCurrentBrandSlug] = useState<string>(BRAND_SLUGS[0]);
@@ -266,7 +264,13 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
   };
 
   useEffect(() => {
-    const isSeen = once && getIntroSeen();
+    /**
+     * The curtain plays whenever the browser hands us a fresh document for this page —
+     * a first visit, a pasted URL or a refresh — but stays out of the way when the user
+     * steps back into it with the browser back button, or navigates home from inside
+     * the app (both of which keep or restore an already visited page).
+     */
+    const shouldPlay = isDocumentEntry() && getDocumentNavigationType() !== 'back_forward';
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
@@ -281,8 +285,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('intro:replay', handleReplayEvent);
 
-    if (!isSeen) {
-      setIntroSeen();
+    if (shouldPlay) {
       playSequence();
     }
 
@@ -292,7 +295,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
       clearTimers();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [once, cycleMs, holdMs]);
+  }, [cycleMs, holdMs]);
 
   if (!active) return null;
 
@@ -445,7 +448,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
             background: 'var(--color-text)',
             willChange: 'transform',
           }}
-        />
+        ></div>
 
         <div
           ref={bylineRef}
@@ -477,28 +480,8 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
       {/* Skip Button */}
       <button
         ref={skipRef}
+        className="lq-btn-skip"
         onClick={() => finish(true)}
-        style={{
-          position: 'absolute',
-          right: 'clamp(16px, 3vw, 32px)',
-          bottom: 'clamp(16px, 3vw, 32px)',
-          zIndex: 3,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'flex-start',
-          gap: '8px',
-          minHeight: '44px',
-          padding: '0 16px',
-          background: 'transparent',
-          border: '2px solid var(--color-divider)',
-          cursor: 'pointer',
-          color: 'var(--color-text)',
-          fontFamily: 'var(--font-heading)',
-          fontWeight: 800,
-          fontSize: '11px',
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-        }}
       >
         Skip
       </button>

@@ -43,6 +43,311 @@ a:hover {
   color: var(--color-accent-600);
 }
 
+/* Navigation Links & Back buttons */
+.lq-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px;
+  color: var(--color-text);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.lq-nav-link:hover {
+  color: var(--color-accent);
+}
+
+/* Sound Toggle Button */
+.lq-btn-sound {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  background: transparent;
+  border: 2px solid var(--color-divider);
+  cursor: pointer;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.lq-btn-sound:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  border-color: var(--color-text);
+}
+.lq-btn-sound:active {
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
+/* Primary Action Button (Play) */
+.lq-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 28px 12px 20px;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, gap 0.2s ease, transform 0.15s ease;
+}
+.lq-btn-primary:hover {
+  background: var(--color-accent-600);
+  gap: 20px;
+  /* Re-assert color so the global `a:hover` rule can't override it */
+  color: var(--color-bg);
+}
+.lq-btn-primary:active {
+  background: var(--color-accent-700);
+  transform: translateY(1px);
+}
+
+/* Secondary Action Button (Logos, Categories on light bg) */
+.lq-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 28px 12px 20px;
+  border: 2px solid var(--color-divider);
+  color: var(--color-text);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.lq-btn-secondary:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  border-color: var(--color-text);
+  /* Re-assert color so the global `a:hover` rule can't override it */
+  color: var(--color-text);
+}
+.lq-btn-secondary:active {
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+  transform: translateY(1px);
+}
+
+/* Skip Button in Intro */
+.lq-btn-skip {
+  position: absolute;
+  right: clamp(16px, 3vw, 32px);
+  bottom: clamp(16px, 3vw, 32px);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  background: transparent;
+  border: 2px solid var(--color-divider);
+  cursor: pointer;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.lq-btn-skip:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  border-color: var(--color-text);
+}
+
+/* Category Cards */
+.lq-cat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  min-height: 180px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 2px solid var(--color-divider);
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.lq-cat-card:hover {
+  background: var(--color-accent-100);
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  /* Re-assert color so the global `a:hover` rule can't override it */
+  color: var(--color-text);
+}
+.lq-cat-card:active {
+  background: var(--color-accent-200);
+  transform: translateY(0);
+}
+
+.lq-cat-card-mixed {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  min-height: 180px;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: 2px solid var(--color-accent);
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.lq-cat-card-mixed:hover {
+  background: var(--color-accent-600);
+  border-color: var(--color-accent-600);
+  transform: translateY(-2px);
+  /* Re-assert color so the global `a:hover` rule can't override it */
+  color: var(--color-bg);
+}
+.lq-cat-card-mixed:active {
+  background: var(--color-accent-700);
+  transform: translateY(0);
+}
+
+/* Game Option Buttons */
+.lq-option-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  text-align: left;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--color-text);
+  border: 2px solid var(--color-divider);
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
+}
+.lq-option-btn:not(:disabled):hover {
+  background: var(--color-accent-100);
+  border-color: var(--color-accent);
+}
+.lq-option-btn:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+/* Game Over Action Buttons */
+.lq-gameover-btn-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 28px 12px 20px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, gap 0.2s ease, transform 0.15s ease;
+}
+.lq-gameover-btn-play:hover {
+  background: var(--color-neutral-200);
+  gap: 20px;
+  /* Re-assert color so the global `a:hover` rule can't override it */
+  color: var(--color-text);
+}
+.lq-gameover-btn-play:active {
+  background: var(--color-neutral-300);
+  transform: translateY(1px);
+}
+
+.lq-gameover-btn-sec {
+  display: inline-flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 12px 24px 12px 20px;
+  border: 2px solid color-mix(in srgb, var(--color-bg) 55%, transparent);
+  color: var(--color-bg);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.lq-gameover-btn-sec:hover {
+  background: color-mix(in srgb, var(--color-bg) 12%, transparent);
+  border-color: var(--color-bg);
+  /* Re-assert color so the global `a:hover` rule can't override it */
+  color: var(--color-bg);
+}
+.lq-gameover-btn-sec:active {
+  background: color-mix(in srgb, var(--color-bg) 20%, transparent);
+}
+
+.lq-gameover-btn-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 12px 24px 12px 20px;
+  color: var(--color-bg);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background 0.15s ease;
+}
+.lq-gameover-btn-link:hover {
+  background: color-mix(in srgb, var(--color-bg) 12%, transparent);
+  /* Re-assert color so the global `a:hover` rule can't override it */
+  color: var(--color-bg);
+}
+.lq-gameover-btn-link:active {
+  background: color-mix(in srgb, var(--color-bg) 20%, transparent);
+}
+
+/* Logos Catalog Cards */
+.lq-logo-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 10px 12px;
+  background: var(--color-surface);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.lq-logo-card:hover {
+  background: var(--color-accent-100);
+  transform: translateY(-2px);
+}
+
 /* Gameplay keyframe animations */
 @keyframes lq-lose {
   0% { transform: scale(1); }
@@ -59,7 +364,7 @@ a:hover {
   80% { transform: translateX(4px); }
 }
 
-/* Modal and backdrop styles matching design specs */
+/* Modal and backdrop styles */
 .dialog-backdrop {
   position: fixed;
   inset: 0;

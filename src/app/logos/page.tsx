@@ -46,22 +46,8 @@ export default function LogosPage() {
       >
         <Link
           href="/"
+          className="lq-nav-link"
           onClick={handleLinkClick}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            minHeight: '44px',
-            padding: '0 8px',
-            color: 'var(--color-text)',
-            textDecoration: 'none',
-            fontFamily: 'var(--font-heading)',
-            fontWeight: 800,
-            fontSize: '13px',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            transition: 'color 0.15s ease',
-          }}
         >
           <svg
             width="16"
@@ -160,15 +146,7 @@ export default function LogosPage() {
               {cat.logos.map((logo) => (
                 <div
                   key={logo.slug}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '18px 10px 12px',
-                    background: 'var(--color-surface)',
-                    transition: 'background 0.15s ease, transform 0.15s ease',
-                  }}
+                  className="lq-logo-card"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

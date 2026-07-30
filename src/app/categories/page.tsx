@@ -48,22 +48,8 @@ export default function CategoriesPage() {
       >
         <Link
           href="/"
+          className="lq-nav-link"
           onClick={handleLinkClick}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            minHeight: '44px',
-            padding: '0 8px',
-            color: 'var(--color-text)',
-            textDecoration: 'none',
-            fontFamily: 'var(--font-heading)',
-            fontWeight: 800,
-            fontSize: '13px',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            transition: 'color 0.15s ease',
-          }}
         >
           <svg
             width="16"
@@ -128,19 +114,8 @@ export default function CategoriesPage() {
           {/* Mixed / All Logos Hero Card */}
           <Link
             href="/game"
+            className="lq-cat-card-mixed"
             onClick={handleLinkClick}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              padding: '22px',
-              minHeight: '180px',
-              background: 'var(--color-accent)',
-              color: 'var(--color-bg)',
-              border: '2px solid var(--color-accent)',
-              textDecoration: 'none',
-              transition: 'background 0.15s ease, border-color 0.15s ease, transform 0.15s ease',
-            }}
           >
             <span
               style={{
@@ -200,19 +175,8 @@ export default function CategoriesPage() {
             <Link
               key={cat.id}
               href={`/game/${cat.id}`}
+              className="lq-cat-card"
               onClick={handleLinkClick}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px',
-                padding: '22px',
-                minHeight: '180px',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-                border: '2px solid var(--color-divider)',
-                textDecoration: 'none',
-                transition: 'background 0.15s ease, border-color 0.15s ease, transform 0.15s ease',
-              }}
             >
               <span
                 style={{

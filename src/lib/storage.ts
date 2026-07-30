@@ -18,7 +18,6 @@ const KEYS = {
   HIGH_SCORE: 'lq_high_score',
   MUTED: 'lq_muted',
   LAST_ROUND: 'lq_last_round',
-  INTRO_SEEN: 'lq_intro_seen',
 };
 
 /**
@@ -95,29 +94,5 @@ export function getLastGameSummary(): GameSummary | null {
     return raw ? (JSON.parse(raw) as GameSummary) : null;
   } catch {
     return null;
-  }
-}
-
-/**
- * Checks whether the intro overlay has already been displayed during the session.
- */
-export function getIntroSeen(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    return sessionStorage.getItem(KEYS.INTRO_SEEN) === '1';
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Marks the intro overlay as seen for the active session.
- */
-export function setIntroSeen(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    sessionStorage.setItem(KEYS.INTRO_SEEN, '1');
-  } catch {
-    // Ignore storage write failures
   }
 }

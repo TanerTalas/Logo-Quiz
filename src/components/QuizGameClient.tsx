@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { buildQuizRound, QuestionItem, getCategoryById, getLogoUrl, handleImageFallback } from '@/lib/gameData';
 import { getMuted, setMuted, setHighScore, getHighScore, setLastGameSummary } from '@/lib/storage';
 import { soundFx } from '@/lib/soundEffects';
+import { useEphemeralScreen } from '@/lib/useEphemeralScreen';
 import { FooterCredit } from '@/components/FooterCredit';
 
 export interface QuizGameClientProps {
@@ -29,6 +30,11 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   maxBlur = 18,
 }) => {
   const router = useRouter();
+
+  // A round cannot survive a page reload, so refreshing (or opening the URL directly)
+  // sends the player back home. Declared first so its effect runs before the round setup.
+  const isLeaving = useEphemeralScreen('/');
+
   const category = getCategoryById(categoryId || null);
   const categoryName = category ? category.name : 'Mixed';
 
@@ -60,10 +66,13 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   const totalMs = revealMs + graceMs;
 
   useEffect(() => {
+    // Skip building a round we are about to navigate away from.
+    if (isLeaving) return;
+
     setIsMuted(getMuted());
     const round = buildQuizRound(categoryId || null, 10);
     setQuestions(round);
-  }, [categoryId]);
+  }, [categoryId, isLeaving]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -193,6 +202,8 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   }, [maxBlur, revealMs, totalMs, isMuted, handleAnswer]);
 
   useEffect(() => {
+    if (isLeaving) return;
+
     if (questions.length > 0 && phase === 'play' && pickedOption === null) {
       startQuestion();
     }
@@ -225,6 +236,9 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   const isFeedback = phase === 'feedback';
   const isCorrectPick = isFeedback && pickedOption === currentQ?.name;
 
+  // Nothing to show while the reload guard hands control back to the home screen.
+  if (isLeaving) return null;
+
   return (
     <div
       style={{
@@ -247,24 +261,8 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
         }}
       >
         <button
+          className="lq-nav-link"
           onClick={handleAskQuit}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            minHeight: '44px',
-            padding: '0 6px',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--color-text)',
-            fontFamily: 'var(--font-heading)',
-            fontWeight: 800,
-            fontSize: '13px',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            transition: 'color 0.15s ease',
-          }}
         >
           <svg
             width="16"
@@ -293,24 +291,10 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button
+            className="lq-btn-sound"
             onClick={handleToggleMute}
             aria-label="Toggle sound"
-            style={{
-              display: 'grid',
-              placeItems: 'center',
-              width: '44px',
-              height: '44px',
-              padding: 0,
-              background: 'transparent',
-              border: '2px solid var(--color-divider)',
-              cursor: 'pointer',
-              color: 'var(--color-text)',
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
-              fontSize: '10px',
-              letterSpacing: '0.06em',
-              transition: 'background 0.15s ease, border-color 0.15s ease',
-            }}
+            style={{ width: '44px', height: '44px', padding: 0, justifyContent: 'center' }}
           >
             <svg
               width="18"
@@ -547,26 +531,13 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
             return (
               <button
                 key={optName}
+                className="lq-option-btn"
                 onClick={() => handleAnswer(optName)}
                 disabled={isFeedback}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-start',
-                  gap: '12px',
-                  minHeight: '56px',
-                  padding: '12px 18px',
-                  cursor: isFeedback ? 'default' : 'pointer',
-                  fontFamily: 'var(--font-heading)',
-                  fontWeight: 800,
-                  fontSize: '16px',
-                  letterSpacing: '0.02em',
-                  textAlign: 'left',
-                  textTransform: 'uppercase',
-                  background: markColor || 'transparent',
-                  color: markColor ? 'var(--color-bg)' : 'var(--color-text)',
-                  border: `2px solid ${markColor || 'var(--color-divider)'}`,
-                  transition: 'background 0.12s ease, border-color 0.12s ease, transform 0.1s ease',
+                  background: markColor || undefined,
+                  color: markColor ? 'var(--color-bg)' : undefined,
+                  borderColor: markColor || undefined,
                 }}
               >
                 <span style={{ fontSize: '11px', color: 'var(--color-accent)', minWidth: '14px' }}>

@@ -12,9 +12,14 @@ import Link from 'next/link';
 import { getLastGameSummary, getHighScore, GameSummary } from '@/lib/storage';
 import { soundFx } from '@/lib/soundEffects';
 import { getMuted } from '@/lib/storage';
+import { useEphemeralScreen } from '@/lib/useEphemeralScreen';
 import { FooterCredit } from '@/components/FooterCredit';
 
 export default function GameOverPage() {
+  // The summary belongs to the round that just ended, so a reload (or a direct URL hit)
+  // returns the player home instead of showing a stale result screen.
+  const isLeaving = useEphemeralScreen('/');
+
   const [summary, setSummary] = useState<GameSummary | null>(null);
   const [highScore, setHighScoreState] = useState<number>(0);
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -51,6 +56,9 @@ export default function GameOverPage() {
   const correctVal = summary ? `${summary.correct} / ${summary.total}` : '—';
   const isNewBest = scoreVal > 0 && scoreVal >= highScore;
   const againHref = summary?.cat ? `/game/${summary.cat}` : '/game';
+
+  // Nothing to show while the reload guard hands control back to the home screen.
+  if (isLeaving) return null;
 
   return (
     <div
@@ -236,24 +244,8 @@ export default function GameOverPage() {
         >
           <Link
             href={againHref}
+            className="lq-gameover-btn-play"
             onClick={handleLinkClick}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              gap: '12px',
-              minHeight: '56px',
-              padding: '12px 28px 12px 20px',
-              background: 'var(--color-bg)',
-              color: 'var(--color-text)',
-              textDecoration: 'none',
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
-              fontSize: '18px',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              transition: 'background 0.15s ease, gap 0.2s ease',
-            }}
           >
             Play again
             <svg
@@ -271,43 +263,16 @@ export default function GameOverPage() {
 
           <Link
             href="/categories"
+            className="lq-gameover-btn-sec"
             onClick={handleLinkClick}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: '56px',
-              padding: '12px 24px 12px 20px',
-              border: '2px solid color-mix(in srgb, var(--color-bg) 55%, transparent)',
-              color: 'var(--color-bg)',
-              textDecoration: 'none',
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
-              fontSize: '18px',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              transition: 'background 0.15s ease, border-color 0.15s ease',
-            }}
           >
             Categories
           </Link>
 
           <Link
             href="/"
+            className="lq-gameover-btn-link"
             onClick={handleLinkClick}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: '56px',
-              padding: '12px 24px 12px 20px',
-              color: 'var(--color-bg)',
-              textDecoration: 'none',
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
-              fontSize: '18px',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              transition: 'background 0.15s ease',
-            }}
           >
             Home
           </Link>

@@ -91,26 +91,9 @@ export default function HomePage() {
         </div>
 
         <button
+          className="lq-btn-sound"
           onClick={handleToggleMute}
           aria-label="Toggle sound"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            gap: '8px',
-            minHeight: '44px',
-            padding: '0 14px',
-            background: 'transparent',
-            border: '2px solid var(--color-divider)',
-            cursor: 'pointer',
-            color: 'var(--color-text)',
-            fontFamily: 'var(--font-heading)',
-            fontWeight: 800,
-            fontSize: '12px',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            transition: 'background 0.15s ease, border-color 0.15s ease',
-          }}
         >
           <svg
             width="16"
@@ -193,24 +176,8 @@ export default function HomePage() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
             <Link
               href="/categories"
+              className="lq-btn-primary"
               onClick={handleButtonClick}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                gap: '12px',
-                minHeight: '56px',
-                padding: '12px 28px 12px 20px',
-                background: 'var(--color-accent)',
-                color: 'var(--color-bg)',
-                textDecoration: 'none',
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 800,
-                fontSize: '18px',
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                transition: 'background 0.15s ease, gap 0.2s ease',
-              }}
             >
               Play
               <svg
@@ -227,24 +194,8 @@ export default function HomePage() {
 
             <Link
               href="/logos"
+              className="lq-btn-secondary"
               onClick={handleButtonClick}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                gap: '12px',
-                minHeight: '56px',
-                padding: '12px 28px 12px 20px',
-                border: '2px solid var(--color-divider)',
-                color: 'var(--color-text)',
-                textDecoration: 'none',
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 800,
-                fontSize: '18px',
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                transition: 'background 0.15s ease, border-color 0.15s ease',
-              }}
             >
               Logos
             </Link>
@@ -281,8 +232,8 @@ export default function HomePage() {
         </div>
       </main>
 
-      {/* Intro curtain animation overlay */}
-      <IntroOverlay once={true} />
+      {/* Intro curtain animation overlay — plays on entry and on refresh, not on back */}
+      <IntroOverlay />
 
       {/* Creator footer credit */}
       <FooterCredit />
