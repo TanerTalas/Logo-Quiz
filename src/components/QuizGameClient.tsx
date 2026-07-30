@@ -3,9 +3,9 @@
 /**
  * Quiz Game Client Component
  * 
- * Manages the real-time gameplay loop: timer unblurring animation, points calculation,
- * 3 lives tracking with shake/heart loss animations, option feedback states, audio SFX,
- * and navigation to the Game Over screen.
+ * Manages the real-time gameplay loop: a "Ready? / Go" countdown before the first question,
+ * timer unblurring animation, points calculation, 3 lives tracking with shake/heart loss
+ * animations, option feedback states, audio SFX, and navigation to the Game Over screen.
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -21,6 +21,8 @@ export interface QuizGameClientProps {
   revealSeconds?: number;
   graceSeconds?: number;
   maxBlur?: number;
+  /** Shows the pre-round "Ready? / Go" countdown; set to false to start instantly. */
+  showCountdown?: boolean;
 }
 
 export const QuizGameClient: React.FC<QuizGameClientProps> = ({
@@ -28,6 +30,7 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   revealSeconds = 8,
   graceSeconds = 4,
   maxBlur = 18,
+  showCountdown = true,
 }) => {
   const router = useRouter();
 
@@ -43,7 +46,10 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   const [qIndex, setQIndex] = useState<number>(0);
   const [score, setScore] = useState<number>(0);
   const [lives, setLives] = useState<number>(3);
-  const [phase, setPhase] = useState<'play' | 'feedback'>('play');
+  // The round opens on the countdown screen and only then moves into the play loop.
+  const [phase, setPhase] = useState<'countdown' | 'play' | 'feedback'>('countdown');
+  // 2 renders "Ready?", 1 renders "Go".
+  const [countStep, setCountStep] = useState<number>(2);
   const [pickedOption, setPickedOption] = useState<string | null>(null);
   const [blur, setBlur] = useState<number>(maxBlur);
   const [points, setPoints] = useState<number>(100);
@@ -60,6 +66,10 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   const lastTickRef = useRef<number>(-1);
   const fbTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fadeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const cdTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Countdown word element, re-triggered on each step to replay its entrance animation
+  const countRef = useRef<HTMLDivElement>(null);
 
   const revealMs = revealSeconds * 1000;
   const graceMs = graceSeconds * 1000;
@@ -74,12 +84,58 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
     setQuestions(round);
   }, [categoryId, isLeaving]);
 
+  /**
+   * Pre-round countdown. Runs once the round is ready: holds on "Ready?" for a beat,
+   * flashes "Go", then hands over to the play loop by switching the phase — the effect
+   * below picks that up and starts the first question with fresh handlers.
+   */
+  useEffect(() => {
+    if (isLeaving || questions.length === 0) return;
+
+    // Countdown turned off: drop straight into the first question.
+    if (!showCountdown) {
+      setPhase('play');
+      return;
+    }
+
+    setPhase('countdown');
+    setCountStep(2);
+    setBlur(maxBlur);
+    setTimePct(100);
+    soundFx.tick(isMuted);
+
+    cdTimerRef.current = setTimeout(() => {
+      setCountStep(1);
+      soundFx.click(isMuted);
+      cdTimerRef.current = setTimeout(() => setPhase('play'), 620);
+    }, 1500);
+
+    return () => {
+      if (cdTimerRef.current) clearTimeout(cdTimerRef.current);
+    };
+    // isMuted is read once on purpose: toggling sound must not restart the countdown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions, isLeaving, showCountdown, maxBlur]);
+
+  // Replays the entrance animation of the countdown word on every step change
+  useEffect(() => {
+    if (phase !== 'countdown') return;
+
+    const el = countRef.current;
+    if (!el) return;
+
+    el.style.animation = 'none';
+    void el.offsetWidth; // Forced reflow so the animation restarts from the beginning
+    el.style.animation = 'lq-count 0.55s cubic-bezier(.16,.9,.2,1) both';
+  }, [phase, countStep]);
+
   // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (fbTimerRef.current) clearTimeout(fbTimerRef.current);
       if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+      if (cdTimerRef.current) clearTimeout(cdTimerRef.current);
     };
   }, []);
 
@@ -201,6 +257,8 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
     rafRef.current = requestAnimationFrame(tickLoop);
   }, [maxBlur, revealMs, totalMs, isMuted, handleAnswer]);
 
+  // Starts a question whenever the round enters the play phase: after the countdown for
+  // the first one, and after each feedback pause for the ones that follow.
   useEffect(() => {
     if (isLeaving) return;
 
@@ -208,7 +266,7 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
       startQuestion();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questions, qIndex]);
+  }, [questions, qIndex, phase]);
 
   const handleToggleMute = () => {
     const nextMuted = !isMuted;
@@ -234,6 +292,7 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
 
   const currentQ = questions[qIndex];
   const isFeedback = phase === 'feedback';
+  const isCountdown = phase === 'countdown';
   const isCorrectPick = isFeedback && pickedOption === currentQ?.name;
 
   // Nothing to show while the reload guard hands control back to the home screen.
@@ -491,7 +550,8 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
             overflow: 'hidden',
           }}
         >
-          {currentQ?.slug && (
+          {/* Kept hidden during the countdown so the logo is not revealed early */}
+          {currentQ?.slug && !isCountdown && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={currentQ.slug}
@@ -533,7 +593,7 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
                 key={optName}
                 className="lq-option-btn"
                 onClick={() => handleAnswer(optName)}
-                disabled={isFeedback}
+                disabled={isFeedback || isCountdown}
                 style={{
                   background: markColor || undefined,
                   color: markColor ? 'var(--color-bg)' : undefined,
@@ -549,6 +609,75 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
           })}
         </div>
       </main>
+
+      {/* Pre-round countdown curtain: category, "Ready?" / "Go", rule and hint */}
+      {isCountdown && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            gap: 'clamp(14px, 2.4vw, 24px)',
+            padding: 'clamp(24px, 6vw, 72px)',
+            background: 'var(--color-bg)',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '11px',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              color: 'var(--color-accent)',
+            }}
+          >
+            {categoryName}
+          </div>
+
+          <div
+            ref={countRef}
+            style={{
+              maxWidth: '100%',
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 800,
+              fontSize: 'clamp(56px, 15vw, 170px)',
+              lineHeight: 0.82,
+              letterSpacing: '-0.03em',
+              textTransform: 'uppercase',
+              color: countStep > 1 ? 'var(--color-text)' : 'var(--color-accent)',
+            }}
+          >
+            {countStep > 1 ? 'Ready?' : 'Go'}
+          </div>
+
+          <div
+            style={{
+              width: 'min(420px, 70%)',
+              height: '2px',
+              background: 'var(--color-text)',
+              transformOrigin: '0 50%',
+              animation: 'lq-count-rule 0.6s cubic-bezier(.2,.9,.2,1) both',
+            }}
+          />
+
+          <div
+            style={{
+              fontSize: '11px',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              maxWidth: '30ch',
+              lineHeight: 1.5,
+              textWrap: 'pretty',
+              color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+            }}
+          >
+            Get ready — three lives, faster answers score more
+          </div>
+        </div>
+      )}
 
       {/* Quit Confirmation Modal */}
       {quitOpen && (

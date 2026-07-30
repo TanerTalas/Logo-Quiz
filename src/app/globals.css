@@ -364,6 +364,18 @@ a:hover {
   80% { transform: translateX(4px); }
 }
 
+/* Pre-round countdown: word entrance and rule sweep */
+@keyframes lq-count {
+  0% { opacity: 0; transform: translateY(0.18em) scale(0.92); }
+  40% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes lq-count-rule {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 /* Modal and backdrop styles */
 .dialog-backdrop {
   position: fixed;
