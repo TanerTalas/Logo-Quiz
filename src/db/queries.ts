@@ -25,6 +25,8 @@ import { categories, logos } from './schema';
 export interface CatalogLogo {
   name: string;
   imageUrl: string;
+  /** Brand hex, so the page can plate the logos that would vanish on a white card. */
+  color: string;
   difficulty: number;
 }
 
@@ -51,6 +53,7 @@ export async function getCatalog(): Promise<CatalogCategory[]> {
       categoryName: categories.name,
       logoName: logos.name,
       logoImageUrl: logos.imageUrl,
+      logoColor: logos.color,
       logoDifficulty: logos.difficulty,
     })
     .from(categories)
@@ -69,6 +72,7 @@ export async function getCatalog(): Promise<CatalogCategory[]> {
     category.logos.push({
       name: row.logoName,
       imageUrl: row.logoImageUrl,
+      color: row.logoColor,
       difficulty: row.logoDifficulty,
     });
   }

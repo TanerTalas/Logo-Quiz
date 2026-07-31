@@ -12,6 +12,7 @@
 import React from 'react';
 
 import { getCatalog, countLogos } from '@/db/queries';
+import { needsDarkPlate } from '@/lib/logoContrast';
 import { SoundLink } from '@/components/SoundLink';
 import { FooterCredit } from '@/components/FooterCredit';
 
@@ -138,14 +139,20 @@ export default async function LogosPage() {
             >
               {category.logos.map((logo) => (
                 <div key={logo.name} className="lq-logo-card">
-                  {/* Lazy loaded: the full catalog is several hundred images. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={logo.imageUrl}
-                    alt={logo.name}
-                    loading="lazy"
-                    style={{ width: '44px', height: '44px', objectFit: 'contain' }}
-                  />
+                  {/* A near-white brand would be invisible on a white card, so those
+                      few get a dark plate to sit on — see lib/logoContrast.ts. */}
+                  <span
+                    className={`lq-logo-plate${needsDarkPlate(logo.color) ? ' is-dark' : ''}`}
+                  >
+                    {/* Lazy loaded: the full catalog is several hundred images. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={logo.imageUrl}
+                      alt={logo.name}
+                      loading="lazy"
+                      style={{ width: '44px', height: '44px', objectFit: 'contain' }}
+                    />
+                  </span>
                   <span
                     style={{
                       fontFamily: 'var(--font-heading)',

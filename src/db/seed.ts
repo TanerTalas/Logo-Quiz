@@ -23,6 +23,7 @@ import * as simpleIcons from 'simple-icons';
 
 import { categories, logos } from './schema';
 import { CATALOG, ACCEPTED_ALIASES, difficultyFor } from './catalog';
+import { LOGO_PLATE_COLOR, needsDarkPlate } from '../lib/logoContrast';
 
 // ---------------------------------------------------------------------------
 // SimpleIcons lookup
@@ -50,18 +51,31 @@ function logoImageUrl(slug: string): string {
 /**
  * Prepares the icon markup for use as a mystery logo.
  *
- * Two changes. First, the brand colour is painted on: the package ships bare paths,
+ * Three changes. First, the brand colour is painted on: the package ships bare paths,
  * while the CDN applies the hex — and the colour is a deliberate part of the puzzle.
  * Second, everything that names the brand comes out. SimpleIcons gives every icon a
  * `<title>` for screen readers, which would spell out the answer to anyone who
  * opened the image.
+ *
+ * Third, a logo too light for the game's white tile gets a dark plate behind it, filling
+ * the viewBox. The plate is baked in here rather than applied by the game because the
+ * browser only ever receives this file as an `<img>` source: it cannot see the colour
+ * inside, and telling it separately would mean shipping a hint about the answer.
  */
 function prepareMysterySvg(icon: SimpleIcon): string {
-  return icon.svg
+  const stripped = icon.svg
     .replace(/<title\b[^>]*>[\s\S]*?<\/title>/gi, '')
     .replace(/<desc\b[^>]*>[\s\S]*?<\/desc>/gi, '')
     .replace(/\saria-label="[^"]*"/gi, '')
     .replace('<svg', `<svg fill="#${icon.hex}"`);
+
+  if (!needsDarkPlate(icon.hex)) return stripped;
+
+  // Straight after the opening tag, so the plate paints under the icon's paths.
+  return stripped.replace(
+    /^(<svg[^>]*>)/,
+    `$1<rect width="100%" height="100%" fill="${LOGO_PLATE_COLOR}"/>`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +160,7 @@ async function seed(): Promise<void> {
           slug,
           name: icon.title,
           imageUrl: logoImageUrl(slug),
+          color: icon.hex,
           svg: prepareMysterySvg(icon),
           difficulty: difficultyFor(slug),
           acceptedAnswers: ACCEPTED_ALIASES[slug] ?? [],
@@ -163,6 +178,7 @@ async function seed(): Promise<void> {
           categoryId: sql`excluded.category_id`,
           name: sql`excluded.name`,
           imageUrl: sql`excluded.image_url`,
+          color: sql`excluded.color`,
           svg: sql`excluded.svg`,
           difficulty: sql`excluded.difficulty`,
           acceptedAnswers: sql`excluded.accepted_answers`,

@@ -401,6 +401,20 @@ html[data-intro-skip] .lq-intro-root {
   }
 }
 
+/* Holder for the catalog thumbnail. Invisible for almost every brand — it only earns
+   its keep on the handful whose colour is so light that the mark would disappear into
+   the white card, which get `.is-dark` and a plate to sit on. */
+.lq-logo-plate {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+}
+
+.lq-logo-plate.is-dark {
+  background: var(--color-text);
+}
+
 /* Gameplay keyframe animations */
 @keyframes lq-lose {
   0% { transform: scale(1); }

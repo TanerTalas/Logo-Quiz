@@ -58,6 +58,14 @@ export const logos = pgTable(
      */
     imageUrl: text('image_url').notNull(),
     /**
+     * The brand's own colour, as the six digit hex SimpleIcons publishes it in.
+     *
+     * Not decoration: it is what says whether a logo would vanish on the white tiles the
+     * catalog and the game use, so the display code can put a dark plate under the ones
+     * that would. Safe to render — a colour is not an answer. See `lib/logoContrast.ts`.
+     */
+    color: text('color').notNull().default('000000'),
+    /**
      * The icon markup itself, stored at seed time with the brand name stripped out.
      *
      * The mystery logo shown during a round is served from here rather than proxied
