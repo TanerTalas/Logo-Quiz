@@ -32,6 +32,7 @@ interface SimpleIcon {
   title: string;
   slug: string;
   hex: string;
+  svg: string;
 }
 
 // The package exports one `siBrandName` constant per icon; index them by slug.
@@ -44,6 +45,23 @@ const ICONS_BY_SLUG = new Map<string, SimpleIcon>(
 /** Public CDN URL for a brand icon, rendered in the brand's own colour. */
 function logoImageUrl(slug: string): string {
   return `https://cdn.simpleicons.org/${slug}`;
+}
+
+/**
+ * Prepares the icon markup for use as a mystery logo.
+ *
+ * Two changes. First, the brand colour is painted on: the package ships bare paths,
+ * while the CDN applies the hex — and the colour is a deliberate part of the puzzle.
+ * Second, everything that names the brand comes out. SimpleIcons gives every icon a
+ * `<title>` for screen readers, which would spell out the answer to anyone who
+ * opened the image.
+ */
+function prepareMysterySvg(icon: SimpleIcon): string {
+  return icon.svg
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/gi, '')
+    .replace(/<desc\b[^>]*>[\s\S]*?<\/desc>/gi, '')
+    .replace(/\saria-label="[^"]*"/gi, '')
+    .replace('<svg', `<svg fill="#${icon.hex}"`);
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +146,7 @@ async function seed(): Promise<void> {
           slug,
           name: icon.title,
           imageUrl: logoImageUrl(slug),
+          svg: prepareMysterySvg(icon),
           difficulty: difficultyFor(slug),
           acceptedAnswers: ACCEPTED_ALIASES[slug] ?? [],
         };
@@ -144,6 +163,7 @@ async function seed(): Promise<void> {
           categoryId: sql`excluded.category_id`,
           name: sql`excluded.name`,
           imageUrl: sql`excluded.image_url`,
+          svg: sql`excluded.svg`,
           difficulty: sql`excluded.difficulty`,
           acceptedAnswers: sql`excluded.accepted_answers`,
         },

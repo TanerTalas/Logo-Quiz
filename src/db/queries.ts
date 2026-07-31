@@ -215,11 +215,24 @@ export async function getLogoAnswer(logoId: number) {
     .select({
       name: logos.name,
       acceptedAnswers: logos.acceptedAnswers,
-      imageUrl: logos.imageUrl,
     })
     .from(logos)
     .where(eq(logos.id, logoId))
     .limit(1);
 
   return row;
+}
+
+/**
+ * The mystery logo markup for one question, already stripped of anything naming the
+ * brand. Safe to send to the browser; the answer is not in it.
+ */
+export async function getLogoSvg(logoId: number): Promise<string | undefined> {
+  const [row] = await db
+    .select({ svg: logos.svg })
+    .from(logos)
+    .where(eq(logos.id, logoId))
+    .limit(1);
+
+  return row?.svg;
 }

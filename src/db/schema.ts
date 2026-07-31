@@ -52,7 +52,20 @@ export const logos = pgTable(
       .references(() => categories.id, { onDelete: 'cascade' }),
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
+    /**
+     * CDN address, used only where the brand is already public: the catalog pages
+     * and the decorative tiles. The browser fetches these directly.
+     */
     imageUrl: text('image_url').notNull(),
+    /**
+     * The icon markup itself, stored at seed time with the brand name stripped out.
+     *
+     * The mystery logo shown during a round is served from here rather than proxied
+     * from the CDN. Fetching it per question put an external service in the game's
+     * hot path — and the CDN sits behind Cloudflare, which rejects requests from
+     * datacenter IPs, so the proxy worked locally and returned 502 in production.
+     */
+    svg: text('svg').notNull().default(''),
     // 1 = everyone knows it, 2 = fairly well known, 3 = niche.
     difficulty: integer('difficulty').notNull().default(1),
     // Alternative spellings accepted as correct, e.g. ["Meta", "FB"] for Facebook.
