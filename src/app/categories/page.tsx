@@ -1,29 +1,36 @@
-'use client';
-
 /**
  * Categories Page Component
- * 
+ *
  * Displays the category selection grid allowing players to start a quiz round
  * for a specific brand topic or a mixed random challenge.
+ *
+ * This is a Server Component: the category list is read straight from Postgres and
+ * rendered to HTML on the server, so no logo data is shipped as JSON. The only
+ * client-side JavaScript on the page is the SoundLink wrapper around each card.
  */
 
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { CATEGORIES, ALL_LOGOS, getLogoUrl, handleImageFallback } from '@/lib/gameData';
-import { getMuted } from '@/lib/storage';
-import { soundFx } from '@/lib/soundEffects';
+import React from 'react';
+
+import { getCatalog, countLogos } from '@/db/queries';
+import { SoundLink } from '@/components/SoundLink';
 import { FooterCredit } from '@/components/FooterCredit';
 
-export default function CategoriesPage() {
-  const [isMuted, setIsMuted] = useState<boolean>(false);
+// The catalog changes only when the database is re-seeded, so the rendered page is
+// cached and refreshed at most once an hour instead of querying on every visit.
+export const revalidate = 3600;
 
-  useEffect(() => {
-    setIsMuted(getMuted());
-  }, []);
+export default async function CategoriesPage() {
+  const catalog = await getCatalog();
+  const totalLogos = countLogos(catalog);
 
-  const handleLinkClick = () => {
-    soundFx.click(isMuted);
+  // Four thumbnails per card, taken from across the category rather than the first
+  // four alphabetically, so the preview looks varied.
+  const previewFor = (logos: { imageUrl: string }[]) => {
+    const step = Math.max(1, Math.floor(logos.length / 4));
+    return [0, 1, 2, 3].map((i) => logos[i * step]).filter(Boolean);
   };
+
+  const mixedPreview = previewFor(catalog.flatMap((c) => c.logos));
 
   return (
     <div
@@ -46,11 +53,7 @@ export default function CategoriesPage() {
           borderBottom: '2px solid var(--color-divider)',
         }}
       >
-        <Link
-          href="/"
-          className="lq-nav-link"
-          onClick={handleLinkClick}
-        >
+        <SoundLink href="/" className="lq-nav-link">
           <svg
             width="16"
             height="16"
@@ -62,7 +65,7 @@ export default function CategoriesPage() {
             <path d="M19 12H5M11 18l-6-6 6-6" />
           </svg>
           Home
-        </Link>
+        </SoundLink>
       </header>
 
       {/* Main section */}
@@ -99,7 +102,7 @@ export default function CategoriesPage() {
               color: 'color-mix(in srgb, var(--color-text) 65%, transparent)',
             }}
           >
-            Every logo in the category, one round each · 3 lives · guess early for more points.
+            Ten logos per round · 3 lives · guess early for more points.
           </p>
         </div>
 
@@ -112,11 +115,7 @@ export default function CategoriesPage() {
           }}
         >
           {/* Mixed / All Logos Hero Card */}
-          <Link
-            href="/game"
-            className="lq-cat-card-mixed"
-            onClick={handleLinkClick}
-          >
+          <SoundLink href="/game" className="lq-cat-card-mixed">
             <span
               style={{
                 fontSize: '10px',
@@ -125,7 +124,7 @@ export default function CategoriesPage() {
                 color: 'var(--color-bg)',
               }}
             >
-              {ALL_LOGOS.length} logos
+              {totalLogos} logos
             </span>
             <span
               style={{
@@ -140,13 +139,12 @@ export default function CategoriesPage() {
               Mixed — everything
             </span>
             <span style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              {ALL_LOGOS.slice(0, 4).map((l) => (
+              {mixedPreview.map((logo) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  key={l.slug}
-                  src={getLogoUrl(l.slug)}
+                  key={logo.imageUrl}
+                  src={logo.imageUrl}
                   alt=""
-                  onError={handleImageFallback}
                   style={{
                     width: '22px',
                     height: '22px',
@@ -168,15 +166,14 @@ export default function CategoriesPage() {
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </span>
-          </Link>
+          </SoundLink>
 
           {/* Individual Category Cards */}
-          {CATEGORIES.map((cat) => (
-            <Link
-              key={cat.id}
-              href={`/game/${cat.id}`}
+          {catalog.map((category) => (
+            <SoundLink
+              key={category.slug}
+              href={`/game/${category.slug}`}
               className="lq-cat-card"
-              onClick={handleLinkClick}
             >
               <span
                 style={{
@@ -186,7 +183,7 @@ export default function CategoriesPage() {
                   color: 'var(--color-accent)',
                 }}
               >
-                {cat.logos.length} logos
+                {category.logos.length} logos
               </span>
               <span
                 style={{
@@ -198,16 +195,15 @@ export default function CategoriesPage() {
                   flex: 1,
                 }}
               >
-                {cat.name}
+                {category.name}
               </span>
               <span style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                {cat.logos.slice(0, 4).map((l) => (
+                {previewFor(category.logos).map((logo) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    key={l.slug}
-                    src={getLogoUrl(l.slug)}
+                    key={logo.imageUrl}
+                    src={logo.imageUrl}
                     alt=""
-                    onError={handleImageFallback}
                     style={{
                       width: '22px',
                       height: '22px',
@@ -229,7 +225,7 @@ export default function CategoriesPage() {
                   <path d="M5 12h14M13 6l6 6-6 6" />
                 </svg>
               </span>
-            </Link>
+            </SoundLink>
           ))}
         </div>
       </main>

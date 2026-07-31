@@ -1,29 +1,26 @@
-'use client';
-
 /**
  * Logos Page Component
- * 
+ *
  * Renders the complete catalog gallery of all brand logos included in the game,
  * grouped by category for study/reference.
+ *
+ * A Server Component — the catalog is read from Postgres and rendered to HTML.
+ * Names are deliberately public here: this page exists so players can study the
+ * brands before playing. Hiding answers only matters inside a round.
  */
 
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { CATEGORIES, getLogoUrl, handleImageFallback } from '@/lib/gameData';
-import { getMuted } from '@/lib/storage';
-import { soundFx } from '@/lib/soundEffects';
+import React from 'react';
+
+import { getCatalog, countLogos } from '@/db/queries';
+import { SoundLink } from '@/components/SoundLink';
 import { FooterCredit } from '@/components/FooterCredit';
 
-export default function LogosPage() {
-  const [isMuted, setIsMuted] = useState<boolean>(false);
+// Rebuilt at most once an hour; the catalog only changes on a re-seed.
+export const revalidate = 3600;
 
-  useEffect(() => {
-    setIsMuted(getMuted());
-  }, []);
-
-  const handleLinkClick = () => {
-    soundFx.click(isMuted);
-  };
+export default async function LogosPage() {
+  const catalog = await getCatalog();
+  const totalLogos = countLogos(catalog);
 
   return (
     <div
@@ -44,11 +41,7 @@ export default function LogosPage() {
           borderBottom: '2px solid var(--color-divider)',
         }}
       >
-        <Link
-          href="/"
-          className="lq-nav-link"
-          onClick={handleLinkClick}
-        >
+        <SoundLink href="/" className="lq-nav-link">
           <svg
             width="16"
             height="16"
@@ -60,7 +53,7 @@ export default function LogosPage() {
             <path d="M19 12H5M11 18l-6-6 6-6" />
           </svg>
           Home
-        </Link>
+        </SoundLink>
       </header>
 
       {/* Main catalog layout */}
@@ -96,13 +89,13 @@ export default function LogosPage() {
               color: 'color-mix(in srgb, var(--color-text) 65%, transparent)',
             }}
           >
-            Every logo in the game, by category. Study up, then play.
+            All {totalLogos} logos in the game, by category. Study up, then play.
           </p>
         </div>
 
         {/* Categories Sections */}
-        {CATEGORIES.map((cat) => (
-          <section key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {catalog.map((category) => (
+          <section key={category.slug} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div
               style={{
                 display: 'flex',
@@ -121,7 +114,7 @@ export default function LogosPage() {
                   textTransform: 'uppercase',
                 }}
               >
-                {cat.name}
+                {category.name}
               </h2>
               <span
                 style={{
@@ -131,7 +124,7 @@ export default function LogosPage() {
                   color: 'var(--color-accent)',
                 }}
               >
-                {cat.logos.length} logos
+                {category.logos.length} logos
               </span>
             </div>
 
@@ -143,16 +136,14 @@ export default function LogosPage() {
                 gap: '10px',
               }}
             >
-              {cat.logos.map((logo) => (
-                <div
-                  key={logo.slug}
-                  className="lq-logo-card"
-                >
+              {category.logos.map((logo) => (
+                <div key={logo.name} className="lq-logo-card">
+                  {/* Lazy loaded: the full catalog is several hundred images. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={getLogoUrl(logo.slug)}
+                    src={logo.imageUrl}
                     alt={logo.name}
-                    onError={handleImageFallback}
+                    loading="lazy"
                     style={{ width: '44px', height: '44px', objectFit: 'contain' }}
                   />
                   <span
