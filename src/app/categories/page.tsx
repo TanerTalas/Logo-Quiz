@@ -12,6 +12,7 @@
 import React from 'react';
 
 import { getCatalog, countLogos } from '@/db/queries';
+import { MIXED_ROUND_QUESTIONS } from '@/lib/scoring';
 import { SoundLink } from '@/components/SoundLink';
 import { FooterCredit } from '@/components/FooterCredit';
 
@@ -124,7 +125,9 @@ export default async function CategoriesPage() {
                 color: 'var(--color-bg)',
               }}
             >
-              {totalLogos} logos
+              {/* Mixed is capped, so name both numbers rather than implying all 365
+                  get asked in one sitting. */}
+              {MIXED_ROUND_QUESTIONS} of {totalLogos} logos
             </span>
             <span
               style={{

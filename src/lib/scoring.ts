@@ -20,6 +20,15 @@ export const TOTAL_MS = REVEAL_MS + GRACE_MS;
 /** Lives a player starts with. A round ends when these run out. */
 export const STARTING_LIVES = 3;
 
+/**
+ * Question limit for a mixed round.
+ *
+ * Category rounds ask every logo they contain, which tops out at 61. Mixed draws
+ * from all 365, so it is capped instead — a counter reading "1 / 365" promises an
+ * hour of play that three lives were never going to allow anyway.
+ */
+export const MIXED_ROUND_QUESTIONS = 50;
+
 const MAX_POINTS = 100;
 const MIN_POINTS = 20;
 
