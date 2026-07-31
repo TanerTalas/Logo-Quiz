@@ -2,14 +2,49 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { NavigationTracker } from '@/components/NavigationTracker';
 
+const SITE_URL = 'https://logo-quiz-lake.vercel.app';
+const SITE_DESCRIPTION =
+  'A blurred brand logo sharpens in seconds. Guess early for maximum points! Designed and coded by Taner Talas.';
+
 export const metadata: Metadata = {
+  /**
+   * Every URL in the metadata below is resolved against this, and a share card is only
+   * usable as an absolute URL — a scraper has no page to resolve "/opengraph-image"
+   * against. Hardcoded rather than read from the Vercel env, so preview deployments
+   * point their previews at production instead of at a URL that changes per build.
+   */
+  metadataBase: new URL(SITE_URL),
+
   // The browser tab reads "Logo Quiz" on every screen. The template applies to any
   // page that sets its own title, so adding one later cannot change what is shown.
   title: {
     default: 'Logo Quiz',
     template: 'Logo Quiz',
   },
-  description: 'A blurred brand logo sharpens in seconds. Guess early for maximum points! Designed and coded by Taner Talas.',
+  description: SITE_DESCRIPTION,
+
+  /**
+   * Link previews. The image itself comes from `opengraph-image.tsx` next to this file,
+   * which Next turns into the og:image and twitter:image tags automatically.
+   *
+   * Worth stating why this block exists at all: with no og:image, each platform invents
+   * its own fallback. WhatsApp reached for the site icon and happened to be right;
+   * Instagram scanned the markup and took the first `<img>` it found, which is the intro
+   * curtain's opening tile — so the site previewed as the Spotify logo.
+   */
+  openGraph: {
+    type: 'website',
+    url: SITE_URL,
+    siteName: 'Logo Quiz',
+    title: 'Logo Quiz',
+    description: SITE_DESCRIPTION,
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Logo Quiz',
+    description: SITE_DESCRIPTION,
+  },
 
   /**
    * Site mark, served from /public.
