@@ -32,7 +32,17 @@ const client =
   postgres(connectionString, {
     // Supabase's connection pooler does not support prepared statements.
     prepare: false,
-    max: 10,
+    /**
+     * Deliberately small. Supabase's free tier allows 15 clients across the whole
+     * project, and this pool is created once per process — one per Next.js build
+     * worker (a dozen of them) and one per serverless instance in production. A
+     * larger pool here does not buy throughput, it just exhausts that budget and
+     * fails with EMAXCONNSESSION. Every query in this app is a single fast read,
+     * so a couple of connections per process is plenty.
+     */
+    max: 2,
+    // Hand a connection back rather than holding it open between requests.
+    idle_timeout: 20,
   });
 
 if (process.env.NODE_ENV !== 'production') {

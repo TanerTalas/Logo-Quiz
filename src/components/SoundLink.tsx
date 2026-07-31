@@ -20,6 +20,7 @@ import { soundFx } from '@/lib/soundEffects';
 
 export interface SoundLinkProps extends LinkProps {
   className?: string;
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }
 

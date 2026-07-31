@@ -376,6 +376,37 @@ a:hover {
   to { transform: scaleX(1); }
 }
 
+/* Not Found screen: staggered entrance and drifting background logos */
+@keyframes lq-nf-rise {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes lq-nf-rule {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes lq-nf-drift {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -14px, 0) rotate(-3deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+
+/* Ghost logos scattered behind the 404 message */
+.lq-nf-ghost {
+  position: absolute;
+  object-fit: contain;
+  opacity: 0.24;
+}
+
+/* The drift is decoration only, so it stops for anyone who asks for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .lq-nf-ghost {
+    animation: none !important;
+  }
+}
+
 /* Modal and backdrop styles */
 .dialog-backdrop {
   position: fixed;
@@ -430,8 +461,13 @@ a:hover {
   text-transform: uppercase;
   cursor: pointer;
   border: 2px solid transparent;
+  text-decoration: none;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
+
+/* Every :hover rule below re-asserts `color`, because these classes are also used
+   on <a> elements and the global `a:hover` rule would otherwise repaint the label
+   accent — which on a filled button means invisible text. */
 
 .btn-primary {
   background: var(--color-accent);
@@ -441,6 +477,7 @@ a:hover {
 
 .btn-primary:hover {
   background: var(--color-accent-600);
+  color: var(--color-bg);
 }
 
 .btn-secondary {
@@ -452,4 +489,17 @@ a:hover {
 .btn-secondary:hover {
   background: color-mix(in srgb, var(--color-text) 7%, transparent);
   border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+/* Lowest-emphasis action: no fill, no border until hovered. */
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text);
+  border-color: transparent;
+}
+
+.btn-ghost:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  color: var(--color-text);
 }
