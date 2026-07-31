@@ -17,10 +17,7 @@ export const GRACE_MS = 4_000;
 /** Total time allowed per question. */
 export const TOTAL_MS = REVEAL_MS + GRACE_MS;
 
-/** Questions asked in one round. */
-export const QUESTIONS_PER_ROUND = 10;
-
-/** Lives a player starts with. */
+/** Lives a player starts with. A round ends when these run out. */
 export const STARTING_LIVES = 3;
 
 const MAX_POINTS = 100;

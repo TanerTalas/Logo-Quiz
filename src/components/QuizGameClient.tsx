@@ -252,8 +252,16 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
       setPickedOption(null);
       setResult(null);
       setCheckFailed(false);
+      // Blur has to go back up in the same batch as the new question index.
+      // startQuestion() only runs an effect later, which would leave one painted
+      // frame showing the next logo unblurred — and since it is preloaded, that
+      // frame renders instantly and the answer flashes on screen. The clock and the
+      // points badge are reset here for the same reason.
+      setBlur(maxBlur);
+      setTimePct(100);
+      setPoints(pointsForElapsed(0));
     },
-    [qIndex, questions.length, finishGame]
+    [qIndex, questions.length, finishGame, maxBlur]
   );
 
   const handleAnswer = useCallback(

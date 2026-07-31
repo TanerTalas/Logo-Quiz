@@ -5,6 +5,10 @@
  * and stores the chosen logo IDs in a signed httpOnly cookie. The response carries
  * only the options — which one is correct stays on the server.
  *
+ * A round covers every logo in the category, so its length varies: 14 questions for
+ * Sports & Fitness, 61 for Tech & Apps, all 365 for a mixed round. Three lives is
+ * what actually ends it.
+ *
  * Request:  { category?: string | null }
  * Response: { categoryName: string, questions: [{ options: string[] }] }
  */
@@ -13,8 +17,6 @@ import { NextResponse } from 'next/server';
 
 import { buildRound, getCategoryBySlug } from '@/db/queries';
 import { saveRoundSession, createRoundNonce } from '@/lib/roundSession';
-
-const QUESTIONS_PER_ROUND = 10;
 
 export async function POST(request: Request) {
   let category: string | null = null;
@@ -27,7 +29,9 @@ export async function POST(request: Request) {
     category = null;
   }
 
-  const round = await buildRound(category, QUESTIONS_PER_ROUND);
+  // No question limit: a round runs the whole category and ends when the player
+  // runs out of lives.
+  const round = await buildRound(category);
 
   if (!round) {
     return NextResponse.json({ error: 'Unknown category' }, { status: 404 });

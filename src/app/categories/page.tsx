@@ -102,7 +102,7 @@ export default async function CategoriesPage() {
               color: 'color-mix(in srgb, var(--color-text) 65%, transparent)',
             }}
           >
-            Ten logos per round · 3 lives · guess early for more points.
+            Every logo in the category, one round each · 3 lives · guess early for more points.
           </p>
         </div>
 

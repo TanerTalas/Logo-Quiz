@@ -128,11 +128,14 @@ function shuffle<T>(items: T[]): T[] {
  *  - Distractors come from the answer's own category. Drawn from the whole catalog
  *    they would be giveaways — "Ferrari, Spotify, HSBC, Ryanair" is not a question.
  *
+ * With no `questionCount` the round asks every logo in the category — the game is
+ * "keep going until you lose three lives", not a fixed ten questions.
+ *
  * Returns null when the category slug does not exist.
  */
 export async function buildRound(
   categorySlug: string | null,
-  questionCount: number = 10
+  questionCount?: number
 ): Promise<BuiltRound | null> {
   // The whole logo table is small enough to select in one go, and having every
   // category on hand is what makes same-category distractors cheap to pick.
@@ -155,9 +158,11 @@ export async function buildRound(
 
   if (pool.length === 0) return null;
 
-  const size = Math.min(questionCount, pool.length);
+  const size = questionCount ? Math.min(questionCount, pool.length) : pool.length;
 
-  // Aim for roughly 40% easy, 40% medium, 20% hard.
+  // Aim for roughly 40% easy, 40% medium, 20% hard. When the round covers the whole
+  // category these quotas are all satisfied by the top-up below, and the effect is
+  // simply that every logo gets asked, easiest first.
   const quota: Record<number, number> = {
     1: Math.round(size * 0.4),
     2: Math.round(size * 0.4),
