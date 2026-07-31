@@ -3,7 +3,12 @@ import './globals.css';
 import { NavigationTracker } from '@/components/NavigationTracker';
 
 export const metadata: Metadata = {
-  title: 'Logo Quiz — Guess the brand logos',
+  // The browser tab reads "Logo Quiz" on every screen. The template applies to any
+  // page that sets its own title, so adding one later cannot change what is shown.
+  title: {
+    default: 'Logo Quiz',
+    template: 'Logo Quiz',
+  },
   description: 'A blurred brand logo sharpens in seconds. Guess early for maximum points! Designed and coded by Taner Talas.',
 };
 
