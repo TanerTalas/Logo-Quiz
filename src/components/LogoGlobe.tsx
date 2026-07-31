@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { getLogoUrl, handleImageFallback } from '@/lib/gameData';
+import { getLogoUrl, handleImageFallback } from '@/lib/logoImages';
 
 export interface LogoGlobeProps {
   tone?: 'ink' | 'onAccent' | 'ghost';

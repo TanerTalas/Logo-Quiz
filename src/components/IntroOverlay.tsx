@@ -13,7 +13,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { getDocumentNavigationType, isDocumentEntry } from '@/lib/navigation';
-import { getLogoUrl } from '@/lib/gameData';
+import { getLogoUrl } from '@/lib/logoImages';
 
 export interface IntroOverlayProps {
   cycleMs?: number;

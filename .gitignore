@@ -201,6 +201,7 @@ out/
 build/
 node_modules/
 .npm
+tsconfig.tsbuildinfo
 
 # Environment variables
 .env

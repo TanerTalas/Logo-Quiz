@@ -2,33 +2,53 @@
 
 /**
  * Quiz Game Client Component
- * 
+ *
  * Manages the real-time gameplay loop: a "Ready? / Go" countdown before the first question,
  * timer unblurring animation, points calculation, 3 lives tracking with shake/heart loss
  * animations, option feedback states, audio SFX, and navigation to the Game Over screen.
+ *
+ * The component never learns the answers. On mount it asks /api/round for a set of
+ * questions — four option labels each, with nothing marking the right one — and the
+ * mystery logo is loaded by question position from /api/logo-image. Every guess goes
+ * to /api/guess, which returns the verdict and the points earned. Everything here is
+ * presentation: the clock, the blur and the points badge are how the round *looks*,
+ * while what it is worth is decided on the server.
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { buildQuizRound, QuestionItem, getCategoryById, getLogoUrl, handleImageFallback } from '@/lib/gameData';
+
 import { getMuted, setMuted, setHighScore, getHighScore, setLastGameSummary } from '@/lib/storage';
 import { soundFx } from '@/lib/soundEffects';
 import { useEphemeralScreen } from '@/lib/useEphemeralScreen';
+import { REVEAL_MS, TOTAL_MS, STARTING_LIVES, pointsForElapsed } from '@/lib/scoring';
 import { FooterCredit } from '@/components/FooterCredit';
 
+/** One question as the browser sees it: four labels, no answer key. */
+interface Question {
+  options: string[];
+}
+
+/** The server's verdict on a submitted guess. */
+interface GuessResult {
+  correct: boolean;
+  correctAnswer: string;
+  points: number;
+}
+
 export interface QuizGameClientProps {
-  categoryId?: string;
-  revealSeconds?: number;
-  graceSeconds?: number;
+  /** Category slug to play, or omitted for a mixed round. */
+  categorySlug?: string;
+  /** Display name for the header and countdown curtain. */
+  categoryName?: string;
   maxBlur?: number;
   /** Shows the pre-round "Ready? / Go" countdown; set to false to start instantly. */
   showCountdown?: boolean;
 }
 
 export const QuizGameClient: React.FC<QuizGameClientProps> = ({
-  categoryId,
-  revealSeconds = 8,
-  graceSeconds = 4,
+  categorySlug,
+  categoryName = 'Mixed',
   maxBlur = 18,
   showCountdown = true,
 }) => {
@@ -38,25 +58,27 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   // sends the player back home. Declared first so its effect runs before the round setup.
   const isLeaving = useEphemeralScreen('/');
 
-  const category = getCategoryById(categoryId || null);
-  const categoryName = category ? category.name : 'Mixed';
-
   // Game state variables
-  const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  // Tags image URLs so they belong to this round and nothing else.
+  const [roundId, setRoundId] = useState<string>('');
+  const [loadError, setLoadError] = useState<boolean>(false);
   const [qIndex, setQIndex] = useState<number>(0);
   const [score, setScore] = useState<number>(0);
-  const [lives, setLives] = useState<number>(3);
+  const [lives, setLives] = useState<number>(STARTING_LIVES);
   // The round opens on the countdown screen and only then moves into the play loop.
   const [phase, setPhase] = useState<'countdown' | 'play' | 'feedback'>('countdown');
   // 2 renders "Ready?", 1 renders "Go".
   const [countStep, setCountStep] = useState<number>(2);
   const [pickedOption, setPickedOption] = useState<string | null>(null);
+  // Null while the server is still deciding, which keeps the feedback styling neutral.
+  const [result, setResult] = useState<GuessResult | null>(null);
+  const [checkFailed, setCheckFailed] = useState<boolean>(false);
   const [blur, setBlur] = useState<number>(maxBlur);
   const [points, setPoints] = useState<number>(100);
   const [timePct, setTimePct] = useState<number>(100);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [quitOpen, setQuitOpen] = useState<boolean>(false);
-  const [justLostHeartIndex, setJustLostHeartIndex] = useState<number | null>(null);
   const [lostFade, setLostFade] = useState<boolean>(false);
   const [correctCount, setCorrectCount] = useState<number>(0);
 
@@ -67,22 +89,47 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   const fbTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fadeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const cdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Guards against a late timeout firing after the player has already answered.
+  const answeredRef = useRef<boolean>(false);
 
   // Countdown word element, re-triggered on each step to replay its entrance animation
   const countRef = useRef<HTMLDivElement>(null);
 
-  const revealMs = revealSeconds * 1000;
-  const graceMs = graceSeconds * 1000;
-  const totalMs = revealMs + graceMs;
+  // -------------------------------------------------------------------------
+  // Round setup
+  // -------------------------------------------------------------------------
 
   useEffect(() => {
     // Skip building a round we are about to navigate away from.
     if (isLeaving) return;
 
     setIsMuted(getMuted());
-    const round = buildQuizRound(categoryId || null, 10);
-    setQuestions(round);
-  }, [categoryId, isLeaving]);
+
+    // Starting the round also sets the httpOnly cookie the image and guess routes
+    // read, so this request has to succeed before anything else can happen.
+    const controller = new AbortController();
+
+    fetch('/api/round', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: categorySlug ?? null }),
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Round request failed: ${response.status}`);
+        return response.json() as Promise<{ questions: Question[]; roundId: string }>;
+      })
+      .then((data) => {
+        setRoundId(data.roundId);
+        setQuestions(data.questions);
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        setLoadError(true);
+      });
+
+    return () => controller.abort();
+  }, [categorySlug, isLeaving]);
 
   /**
    * Pre-round countdown. Runs once the round is ready: holds on "Ready?" for a beat,
@@ -129,6 +176,25 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
     el.style.animation = 'lq-count 0.55s cubic-bezier(.16,.9,.2,1) both';
   }, [phase, countStep]);
 
+  /** Image URL for a question, tagged so it belongs to this round only. */
+  const imageUrlFor = useCallback(
+    (index: number) => `/api/logo-image/${index}?r=${encodeURIComponent(roundId)}`,
+    [roundId]
+  );
+
+  // Fetches the next question's logo ahead of time — during the countdown for the
+  // first one, during the feedback pause for the rest — so the mystery box is
+  // already filled when the question flips over.
+  useEffect(() => {
+    if (!roundId || questions.length === 0) return;
+
+    const next = phase === 'countdown' ? 0 : qIndex + 1;
+    if (next >= questions.length) return;
+
+    const image = new window.Image();
+    image.src = imageUrlFor(next);
+  }, [roundId, questions.length, phase, qIndex, imageUrlFor]);
+
   // Clean up timers on unmount
   useEffect(() => {
     return () => {
@@ -139,16 +205,20 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
     };
   }, []);
 
+  // -------------------------------------------------------------------------
+  // Round flow
+  // -------------------------------------------------------------------------
+
   const finishGame = useCallback(
-    (reason: 'lives' | 'complete') => {
-      const high = Math.max(getHighScore(), score);
+    (reason: 'lives' | 'complete', finalScore: number, finalCorrect: number) => {
+      const high = Math.max(getHighScore(), finalScore);
       setHighScore(high);
 
       setLastGameSummary({
-        score,
-        correct: correctCount,
+        score: finalScore,
+        correct: finalCorrect,
         total: questions.length,
-        cat: categoryId || '',
+        cat: categorySlug || '',
         catName: categoryName,
         reason,
       });
@@ -163,99 +233,125 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
         router.push('/gameover');
       }, 600);
     },
-    [score, correctCount, questions.length, categoryId, categoryName, isMuted, router]
+    [questions.length, categorySlug, categoryName, isMuted, router]
+  );
+
+  /** Moves to the next question, or ends the round when there is none left. */
+  const advance = useCallback(
+    (nextLives: number, nextScore: number, nextCorrect: number) => {
+      if (nextLives <= 0) {
+        finishGame('lives', nextScore, nextCorrect);
+        return;
+      }
+      if (qIndex + 1 >= questions.length) {
+        finishGame('complete', nextScore, nextCorrect);
+        return;
+      }
+      setQIndex((prev) => prev + 1);
+      setPhase('play');
+      setPickedOption(null);
+      setResult(null);
+      setCheckFailed(false);
+    },
+    [qIndex, questions.length, finishGame]
   );
 
   const handleAnswer = useCallback(
     (name: string | null) => {
-      if (phase !== 'play') return;
+      if (answeredRef.current) return;
+      answeredRef.current = true;
+
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
-      const currentQ = questions[qIndex];
-      if (!currentQ) return;
-
-      const isCorrect = name === currentQ.name;
-      if (isCorrect) {
-        soundFx.correct(isMuted);
-      } else {
-        soundFx.wrong(isMuted);
-      }
-
-      const nextLives = lives - (isCorrect ? 0 : 1);
-      const nextCorrect = correctCount + (isCorrect ? 1 : 0);
-
-      if (!isCorrect) {
-        setJustLostHeartIndex(lives - 1);
-        setLostFade(false);
-        if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
-        fadeTimerRef.current = setTimeout(() => {
-          setLostFade(true);
-        }, 750);
-      }
-
+      // Freeze the question immediately so the round feels responsive; the colours
+      // and the score follow a moment later, once the server has ruled on it.
+      const elapsedMs = performance.now() - t0Ref.current;
       setPhase('feedback');
       setPickedOption(name);
       setBlur(0);
       setTimePct(0);
-      if (isCorrect) {
-        setScore((prev) => prev + points);
-        setCorrectCount(nextCorrect);
-      }
-      setLives(nextLives);
 
-      fbTimerRef.current = setTimeout(() => {
-        if (nextLives <= 0) {
-          finishGame('lives');
-          return;
-        }
-        if (qIndex + 1 >= questions.length) {
-          finishGame('complete');
-          return;
-        }
-        setJustLostHeartIndex(null);
-        setQIndex((prev) => prev + 1);
-        setPhase('play');
-        setPickedOption(null);
-      }, 1500);
+      const submit = async (): Promise<GuessResult> => {
+        const response = await fetch('/api/guess', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: qIndex, answer: name, elapsedMs }),
+        });
+        if (!response.ok) throw new Error(`Guess request failed: ${response.status}`);
+        return response.json() as Promise<GuessResult>;
+      };
+
+      // One retry covers a dropped packet without stalling the round on a real outage.
+      submit()
+        .catch(() => submit())
+        .then((verdict) => {
+          setResult(verdict);
+
+          if (verdict.correct) {
+            soundFx.correct(isMuted);
+          } else {
+            soundFx.wrong(isMuted);
+            setLostFade(false);
+            if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+            fadeTimerRef.current = setTimeout(() => setLostFade(true), 750);
+          }
+
+          const nextScore = score + verdict.points;
+          const nextLives = lives - (verdict.correct ? 0 : 1);
+          const nextCorrect = correctCount + (verdict.correct ? 1 : 0);
+
+          setScore(nextScore);
+          setLives(nextLives);
+          setCorrectCount(nextCorrect);
+
+          fbTimerRef.current = setTimeout(() => advance(nextLives, nextScore, nextCorrect), 1500);
+        })
+        .catch(() => {
+          // The verdict never arrived. Skipping the question costs the player nothing
+          // rather than charging them a life for a network problem.
+          setCheckFailed(true);
+          fbTimerRef.current = setTimeout(() => advance(lives, score, correctCount), 1500);
+        });
     },
-    [phase, questions, qIndex, isMuted, lives, correctCount, points, finishGame]
+    [qIndex, isMuted, lives, score, correctCount, advance]
   );
 
   const startQuestion = useCallback(() => {
     t0Ref.current = performance.now();
     lastTickRef.current = -1;
+    answeredRef.current = false;
     setPhase('play');
     setPickedOption(null);
     setBlur(maxBlur);
-    setPoints(100);
+    setPoints(pointsForElapsed(0));
     setTimePct(100);
 
     const tickLoop = (now: number) => {
       const elapsed = now - t0Ref.current;
-      const f = Math.min(1, elapsed / revealMs);
+      const f = Math.min(1, elapsed / REVEAL_MS);
       const currentBlur = maxBlur * (1 - f);
-      const currentPoints = Math.max(20, Math.round(100 - 80 * f));
-      const currentTimePct = Math.max(0, 100 * (1 - elapsed / totalMs));
-      const remainSec = Math.ceil((totalMs - elapsed) / 1000);
+      const currentTimePct = Math.max(0, 100 * (1 - elapsed / TOTAL_MS));
+      const remainSec = Math.ceil((TOTAL_MS - elapsed) / 1000);
 
       if (remainSec <= 3 && remainSec >= 1 && remainSec !== lastTickRef.current) {
         lastTickRef.current = remainSec;
         soundFx.tick(isMuted);
       }
 
-      if (elapsed >= totalMs) {
+      if (elapsed >= TOTAL_MS) {
         handleAnswer(null);
         return;
       }
 
       setBlur(currentBlur);
-      setPoints(currentPoints);
+      // Mirrors the server's formula so the badge never promises the wrong number.
+      setPoints(pointsForElapsed(elapsed));
       setTimePct(currentTimePct);
       rafRef.current = requestAnimationFrame(tickLoop);
     };
 
     rafRef.current = requestAnimationFrame(tickLoop);
-  }, [maxBlur, revealMs, totalMs, isMuted, handleAnswer]);
+  }, [maxBlur, isMuted, handleAnswer]);
 
   // Starts a question whenever the round enters the play phase: after the countdown for
   // the first one, and after each feedback pause for the ones that follow.
@@ -267,6 +363,10 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, qIndex, phase]);
+
+  // -------------------------------------------------------------------------
+  // Controls
+  // -------------------------------------------------------------------------
 
   const handleToggleMute = () => {
     const nextMuted = !isMuted;
@@ -293,10 +393,51 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
   const currentQ = questions[qIndex];
   const isFeedback = phase === 'feedback';
   const isCountdown = phase === 'countdown';
-  const isCorrectPick = isFeedback && pickedOption === currentQ?.name;
+  // Styling waits for the verdict, so an unresolved guess stays neutral.
+  const isCorrectPick = result?.correct === true;
+  const isWrongPick = result?.correct === false;
 
   // Nothing to show while the reload guard hands control back to the home screen.
   if (isLeaving) return null;
+
+  // The round never started — without it there are no questions to show.
+  if (loadError) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          gap: '20px',
+          padding: 'clamp(24px, 6vw, 72px)',
+          background: 'var(--color-bg)',
+          color: 'var(--color-text)',
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-heading)',
+            fontWeight: 800,
+            fontSize: 'clamp(32px, 7vw, 64px)',
+            lineHeight: 0.95,
+            textTransform: 'uppercase',
+          }}
+        >
+          Could not start the round
+        </h1>
+        <p style={{ margin: 0, fontSize: '14px', maxWidth: '40ch', lineHeight: 1.6 }}>
+          The server did not answer. Check your connection and try again.
+        </p>
+        <button className="btn btn-primary" onClick={() => router.push('/categories')}>
+          Back to categories
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -319,10 +460,7 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
           borderBottom: '2px solid var(--color-divider)',
         }}
       >
-        <button
-          className="lq-nav-link"
-          onClick={handleAskQuit}
-        >
+        <button className="lq-nav-link" onClick={handleAskQuit}>
           <svg
             width="16"
             height="16"
@@ -415,13 +553,13 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
             style={{
               display: 'flex',
               gap: '6px',
-              animation: isFeedback && !isCorrectPick ? 'lq-shake 0.5s ease' : 'none',
+              animation: isWrongPick ? 'lq-shake 0.5s ease' : 'none',
             }}
             aria-label="Lives"
           >
             {[0, 1, 2].map((i) => {
               const alive = i < lives;
-              const justLost = isFeedback && !isCorrectPick && i === lives;
+              const justLost = isWrongPick && i === lives;
               const fill = alive ? 'var(--color-accent)' : 'none';
               const stroke = alive || (justLost && !lostFade) ? 'var(--color-accent)' : 'var(--color-neutral-400)';
               const anim = justLost ? 'lq-lose 0.7s ease' : 'none';
@@ -481,12 +619,12 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               padding: '6px 12px',
-              background: isFeedback
-                ? isCorrectPick
-                  ? 'oklch(0.62 0.19 150)'
-                  : 'var(--color-accent)'
+              background: isCorrectPick
+                ? 'oklch(0.62 0.19 150)'
+                : isWrongPick || checkFailed
+                ? 'var(--color-accent)'
                 : 'var(--color-accent-100)',
-              color: isFeedback ? 'var(--color-bg)' : 'var(--color-accent-800)',
+              color: isCorrectPick || isWrongPick || checkFailed ? 'var(--color-bg)' : 'var(--color-accent-800)',
               fontFamily: 'var(--font-heading)',
               fontWeight: 800,
               fontSize: '16px',
@@ -495,7 +633,9 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            {isFeedback ? (
+            {checkFailed ? (
+              'Skipped'
+            ) : result ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
                 <svg
                   width="17"
@@ -506,7 +646,7 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
                   strokeWidth="3"
                   strokeLinecap="square"
                 >
-                  {isCorrectPick ? (
+                  {result.correct ? (
                     <path d="M20 6 9 17l-5-5" />
                   ) : pickedOption === null ? (
                     <g strokeWidth="2.4">
@@ -517,8 +657,11 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
                     <path d="M18 6 6 18M6 6l12 12" />
                   )}
                 </svg>
-                {isCorrectPick ? `+${points}` : currentQ?.name}
+                {result.correct ? `+${result.points}` : result.correctAnswer}
               </span>
+            ) : isFeedback ? (
+              // Guess is in flight; say so rather than showing a stale points figure.
+              'Checking…'
             ) : (
               `+${points} pts`
             )}
@@ -535,29 +678,29 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
             placeItems: 'center',
             background: '#ffffff',
             border: `2px solid ${
-              isFeedback
-                ? isCorrectPick
-                  ? 'oklch(0.62 0.19 150)'
-                  : 'var(--color-accent)'
+              isCorrectPick
+                ? 'oklch(0.62 0.19 150)'
+                : isWrongPick
+                ? 'var(--color-accent)'
                 : 'var(--color-divider)'
             }`,
-            boxShadow: isFeedback
-              ? isCorrectPick
-                ? '0 0 0 4px color-mix(in srgb, oklch(0.62 0.19 150) 35%, transparent), 0 0 28px color-mix(in srgb, oklch(0.62 0.19 150) 60%, transparent)'
-                : '0 0 0 4px color-mix(in srgb, var(--color-accent) 35%, transparent), 0 0 28px color-mix(in srgb, var(--color-accent) 60%, transparent)'
+            boxShadow: isCorrectPick
+              ? '0 0 0 4px color-mix(in srgb, oklch(0.62 0.19 150) 35%, transparent), 0 0 28px color-mix(in srgb, oklch(0.62 0.19 150) 60%, transparent)'
+              : isWrongPick
+              ? '0 0 0 4px color-mix(in srgb, var(--color-accent) 35%, transparent), 0 0 28px color-mix(in srgb, var(--color-accent) 60%, transparent)'
               : 'none',
             transition: 'border-color 0.2s, box-shadow 0.2s',
             overflow: 'hidden',
           }}
         >
-          {/* Kept hidden during the countdown so the logo is not revealed early */}
-          {currentQ?.slug && !isCountdown && (
+          {/* Loaded by question position, not by brand — see /api/logo-image.
+              Kept hidden during the countdown so the logo is not revealed early. */}
+          {currentQ && !isCountdown && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              key={currentQ.slug}
-              src={getLogoUrl(currentQ.slug)}
+              key={qIndex}
+              src={imageUrlFor(qIndex)}
               alt="Mystery logo"
-              onError={handleImageFallback}
               style={{
                 width: '62%',
                 height: '62%',
@@ -578,10 +721,12 @@ export const QuizGameClient: React.FC<QuizGameClientProps> = ({
         >
           {currentQ?.options.map((optName, i) => {
             const greenColor = 'oklch(0.62 0.19 150)';
-            const isOptionCorrect = isFeedback && optName === currentQ.name;
-            const isOptionWrongPick = isFeedback && pickedOption === optName && optName !== currentQ.name;
+            // Which option was right is only known once the server has replied.
+            const isOptionCorrect = result != null && optName === result.correctAnswer;
+            const isOptionWrongPick =
+              result != null && pickedOption === optName && optName !== result.correctAnswer;
             const markColor = isOptionCorrect
-              ? pickedOption === currentQ.name
+              ? result?.correct
                 ? greenColor
                 : 'var(--color-neutral-900)'
               : isOptionWrongPick
