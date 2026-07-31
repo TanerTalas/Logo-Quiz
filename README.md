@@ -200,16 +200,26 @@ The display name and brand colour come from the `simple-icons` package at seed t
 
 ## Deployment
 
-Deploys to [Vercel](https://vercel.com) as-is. Add both environment variables under **Settings → Environment Variables** for Production, Preview and Development:
+Deploys to [Vercel](https://vercel.com) from the repository. Add the environment variables under **Settings → Environment Variables** for Production, Preview and Development:
 
-- `DATABASE_URL`
-- `ROUND_SECRET`
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Supabase **transaction pooler** URI (port 6543) |
+| `ROUND_SECRET` | A long random string |
 
-Two things worth knowing before real traffic arrives:
+Three things about latency and connection limits, each of which costs a confusing afternoon to discover:
 
-**Pick a database region near your users.** The same query measured 340 ms from Turkey to Supabase's Sydney region and 50 ms to Frankfurt. Region cannot be changed after a project is created.
+**Keep the functions in the same region as the database.** Vercel runs functions in Washington (`iad1`) by default. With the database in Frankfurt, every query would cross the Atlantic. `vercel.json` pins them to `fra1` — change it if your database lives elsewhere.
 
-**Switch the app to the transaction pooler.** Supabase's free tier allows 15 concurrent clients across the project, and a connection pool is created per process — one per serverless instance. Session mode holds a connection for the whole session; transaction mode releases it after each transaction and serves far more clients from the same budget. Keep the session pooler URL for migrations, which need a persistent session.
+```json
+{ "regions": ["fra1"] }
+```
+
+**Pick a database region near your users.** The same query measured 340 ms from Turkey to Supabase's Sydney region and 50 ms to Frankfurt. Region cannot be changed after a Supabase project is created, so getting it wrong means starting over.
+
+**Use the transaction pooler in production.** Supabase's free tier allows 15 concurrent clients across the whole project, and a connection pool is created per process — one per serverless instance, so the count climbs with traffic. Session mode holds a connection for the entire session; transaction mode hands it back after each transaction and serves far more clients from the same budget.
+
+Schema changes still need a session that outlives a single transaction. Once `DATABASE_URL` points at the transaction pooler, set `MIGRATION_DATABASE_URL` to the session pooler URI in `.env.local` — `db:push` and `db:seed` pick it up automatically.
 
 ---
 
