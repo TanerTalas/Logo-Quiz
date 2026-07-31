@@ -6,14 +6,23 @@
  * Renders the introductory animated curtain showcase featuring brand tile shuffling,
  * staggered typography reveals ("LOGO QUIZ"), and a split-curtain exit animation.
  *
- * The markup stays mounted and hidden behind `display: none` instead of being
- * conditionally rendered: the whole sequence is driven by direct DOM writes, so every
- * ref has to exist before the first frame runs.
+ * The markup stays mounted and toggled with `display` instead of being conditionally
+ * rendered: the whole sequence is driven by direct DOM writes, so every ref has to exist
+ * before the first frame runs.
+ *
+ * It ships *visible* in the server rendered HTML, in its pre animation pose, so the
+ * curtain is painted together with the document — revealing it from script left a visible
+ * flash of the home page first. See `.lq-intro-root` in globals.css for the escape
+ * hatches that keep a non playing curtain from covering the page.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { getDocumentNavigationType, isDocumentEntry } from '@/lib/navigation';
 import { getLogoUrl } from '@/lib/logoImages';
+
+// A layout effect is what this component needs, but React logs a warning when one is
+// reached while rendering on the server, so fall back to the plain effect there.
+const useBrowserLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 export interface IntroOverlayProps {
   cycleMs?: number;
@@ -40,6 +49,13 @@ const BRAND_SLUGS = [
   'airbnb',
   'discord',
 ];
+
+// Pose every headline letter is served in and returned to before each play
+const LETTER_START_STYLE: React.CSSProperties = {
+  display: 'inline-block',
+  opacity: 0,
+  transform: 'translateY(0.4em)',
+};
 
 export const IntroOverlay: React.FC<IntroOverlayProps> = ({
   cycleMs = 3600,
@@ -293,7 +309,25 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
     rafRef.current = requestAnimationFrame(spin);
   };
 
-  useEffect(() => {
+  /**
+   * Takes the curtain off screen without any animation, for the loads where the intro is
+   * not supposed to play at all.
+   */
+  const hideImmediately = () => {
+    isDoneRef.current = true;
+    if (overlayRef.current) {
+      overlayRef.current.style.display = 'none';
+      overlayRef.current.style.pointerEvents = 'none';
+    }
+  };
+
+  /**
+   * A layout effect rather than a plain one: on an in-app navigation home this runs
+   * before the browser paints, so the curtain that ships visible in the markup is hidden
+   * again without ever being seen. (On a document load the HTML is painted before React
+   * gets here — that case is handled by the blocking script in the root layout.)
+   */
+  useBrowserLayoutEffect(() => {
     /**
      * The curtain plays whenever the browser hands us a fresh document for this page —
      * a first visit, a pasted URL or a refresh — but stays out of the way when the user
@@ -317,6 +351,8 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
 
     if (shouldPlay) {
       playSequence();
+    } else {
+      hideImmediately();
     }
 
     return () => {
@@ -324,24 +360,19 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
       window.removeEventListener('intro:replay', handleReplayEvent);
       clearTimers();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // The animation reads the timings when it starts; nothing else here belongs in deps.
   }, [cycleMs, holdMs]);
 
   const logoLetters = ['L', 'O', 'G', 'O'];
   const quizLetters = ['Q', 'U', 'I', 'Z'];
 
   return (
-    <div
-      ref={overlayRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 900,
-        overflow: 'hidden',
-        // Hidden until the sequence starts, and hidden again once the curtain is gone
-        display: 'none',
-      }}
-    >
+    <div ref={overlayRef} className="lq-intro-root">
+      {/* Without script nothing here can ever animate away, so never show it at all. */}
+      <noscript>
+        <style>{`.lq-intro-root { display: none; }`}</style>
+      </noscript>
+
       {/* Top split curtain panel */}
       <div
         ref={topRef}
@@ -445,6 +476,8 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
             textTransform: 'uppercase',
           }}
         >
+          {/* Letters start below the baseline and invisible — the same pose resetStyles
+              puts them back into — so the served HTML already looks like frame zero. */}
           <div style={{ display: 'flex' }}>
             {logoLetters.map((char, idx) => (
               <span
@@ -452,6 +485,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
                 ref={(el) => {
                   letterRefs.current[idx] = el;
                 }}
+                style={LETTER_START_STYLE}
               >
                 {char}
               </span>
@@ -464,6 +498,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
                 ref={(el) => {
                   letterRefs.current[4 + idx] = el;
                 }}
+                style={LETTER_START_STYLE}
               >
                 {char}
               </span>
@@ -477,6 +512,8 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
             width: 'min(460px, 70%)',
             height: '2px',
             background: 'var(--color-text)',
+            transformOrigin: '0 50%',
+            transform: 'scaleX(0)',
             willChange: 'transform',
           }}
         ></div>
@@ -491,6 +528,8 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({
             letterSpacing: '0.14em',
             textTransform: 'uppercase',
             color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+            opacity: 0,
+            transform: 'translateY(10px)',
             willChange: 'transform, opacity',
           }}
         >

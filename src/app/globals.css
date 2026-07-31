@@ -39,8 +39,15 @@ a {
   color: var(--color-accent);
 }
 
-a:hover {
-  color: var(--color-accent-600);
+/* Every `:hover` rule in this file sits inside `@media (hover: hover) and (pointer: fine)`.
+   Touch browsers apply :hover on tap and keep it applied until something else is tapped,
+   which left answered options and pressed buttons looking permanently highlighted — the
+   selected option even stayed lit after the next question replaced it. Gating on a real
+   pointer keeps hover a mouse-only affordance; `:active` still gives touch its feedback. */
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    color: var(--color-accent-600);
+  }
 }
 
 /* Navigation Links & Back buttons */
@@ -62,8 +69,10 @@ a:hover {
   cursor: pointer;
   transition: color 0.15s ease;
 }
-.lq-nav-link:hover {
-  color: var(--color-accent);
+@media (hover: hover) and (pointer: fine) {
+  .lq-nav-link:hover {
+    color: var(--color-accent);
+  }
 }
 
 /* Sound Toggle Button */
@@ -85,9 +94,11 @@ a:hover {
   text-transform: uppercase;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.lq-btn-sound:hover {
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-  border-color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .lq-btn-sound:hover {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    border-color: var(--color-text);
+  }
 }
 .lq-btn-sound:active {
   background: color-mix(in srgb, var(--color-text) 14%, transparent);
@@ -111,11 +122,13 @@ a:hover {
   text-transform: uppercase;
   transition: background 0.15s ease, gap 0.2s ease, transform 0.15s ease;
 }
-.lq-btn-primary:hover {
-  background: var(--color-accent-600);
-  gap: 20px;
-  /* Re-assert color so the global `a:hover` rule can't override it */
-  color: var(--color-bg);
+@media (hover: hover) and (pointer: fine) {
+  .lq-btn-primary:hover {
+    background: var(--color-accent-600);
+    gap: 20px;
+    /* Re-assert color so the global `a:hover` rule can't override it */
+    color: var(--color-bg);
+  }
 }
 .lq-btn-primary:active {
   background: var(--color-accent-700);
@@ -140,15 +153,39 @@ a:hover {
   text-transform: uppercase;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.lq-btn-secondary:hover {
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-  border-color: var(--color-text);
-  /* Re-assert color so the global `a:hover` rule can't override it */
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .lq-btn-secondary:hover {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    border-color: var(--color-text);
+    /* Re-assert color so the global `a:hover` rule can't override it */
+    color: var(--color-text);
+  }
 }
 .lq-btn-secondary:active {
   background: color-mix(in srgb, var(--color-text) 14%, transparent);
   transform: translateY(1px);
+}
+
+/* Intro Curtain Root
+   Visible in the server rendered HTML on purpose: the overlay used to start hidden and
+   was revealed by script, so the home page underneath flashed for a frame or two before
+   the curtain appeared. Painting it with the document means the curtain is simply there
+   from the first frame. Everything inside it is authored in its pre animation pose, so
+   that first frame matches what the animation starts from.
+
+   Two escape hatches, because a curtain that never lifts would hide the whole page:
+   the root layout's blocking script marks the document on a back/forward load, the one
+   document load the intro must sit out, and <noscript> covers a browser without script. */
+.lq-intro-root {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  overflow: hidden;
+  display: block;
+}
+
+html[data-intro-skip] .lq-intro-root {
+  display: none;
 }
 
 /* Skip Button in Intro */
@@ -174,9 +211,11 @@ a:hover {
   text-transform: uppercase;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.lq-btn-skip:hover {
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-  border-color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .lq-btn-skip:hover {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    border-color: var(--color-text);
+  }
 }
 
 /* Category Cards */
@@ -192,12 +231,14 @@ a:hover {
   text-decoration: none;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.lq-cat-card:hover {
-  background: var(--color-accent-100);
-  border-color: var(--color-accent);
-  transform: translateY(-2px);
-  /* Re-assert color so the global `a:hover` rule can't override it */
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .lq-cat-card:hover {
+    background: var(--color-accent-100);
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+    /* Re-assert color so the global `a:hover` rule can't override it */
+    color: var(--color-text);
+  }
 }
 .lq-cat-card:active {
   background: var(--color-accent-200);
@@ -216,12 +257,14 @@ a:hover {
   text-decoration: none;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.lq-cat-card-mixed:hover {
-  background: var(--color-accent-600);
-  border-color: var(--color-accent-600);
-  transform: translateY(-2px);
-  /* Re-assert color so the global `a:hover` rule can't override it */
-  color: var(--color-bg);
+@media (hover: hover) and (pointer: fine) {
+  .lq-cat-card-mixed:hover {
+    background: var(--color-accent-600);
+    border-color: var(--color-accent-600);
+    transform: translateY(-2px);
+    /* Re-assert color so the global `a:hover` rule can't override it */
+    color: var(--color-bg);
+  }
 }
 .lq-cat-card-mixed:active {
   background: var(--color-accent-700);
@@ -248,9 +291,11 @@ a:hover {
   border: 2px solid var(--color-divider);
   transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
 }
-.lq-option-btn:not(:disabled):hover {
-  background: var(--color-accent-100);
-  border-color: var(--color-accent);
+@media (hover: hover) and (pointer: fine) {
+  .lq-option-btn:not(:disabled):hover {
+    background: var(--color-accent-100);
+    border-color: var(--color-accent);
+  }
 }
 .lq-option-btn:not(:disabled):active {
   transform: scale(0.985);
@@ -274,11 +319,13 @@ a:hover {
   text-transform: uppercase;
   transition: background 0.15s ease, gap 0.2s ease, transform 0.15s ease;
 }
-.lq-gameover-btn-play:hover {
-  background: var(--color-neutral-200);
-  gap: 20px;
-  /* Re-assert color so the global `a:hover` rule can't override it */
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .lq-gameover-btn-play:hover {
+    background: var(--color-neutral-200);
+    gap: 20px;
+    /* Re-assert color so the global `a:hover` rule can't override it */
+    color: var(--color-text);
+  }
 }
 .lq-gameover-btn-play:active {
   background: var(--color-neutral-300);
@@ -300,11 +347,13 @@ a:hover {
   text-transform: uppercase;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.lq-gameover-btn-sec:hover {
-  background: color-mix(in srgb, var(--color-bg) 12%, transparent);
-  border-color: var(--color-bg);
-  /* Re-assert color so the global `a:hover` rule can't override it */
-  color: var(--color-bg);
+@media (hover: hover) and (pointer: fine) {
+  .lq-gameover-btn-sec:hover {
+    background: color-mix(in srgb, var(--color-bg) 12%, transparent);
+    border-color: var(--color-bg);
+    /* Re-assert color so the global `a:hover` rule can't override it */
+    color: var(--color-bg);
+  }
 }
 .lq-gameover-btn-sec:active {
   background: color-mix(in srgb, var(--color-bg) 20%, transparent);
@@ -324,10 +373,12 @@ a:hover {
   text-transform: uppercase;
   transition: background 0.15s ease;
 }
-.lq-gameover-btn-link:hover {
-  background: color-mix(in srgb, var(--color-bg) 12%, transparent);
-  /* Re-assert color so the global `a:hover` rule can't override it */
-  color: var(--color-bg);
+@media (hover: hover) and (pointer: fine) {
+  .lq-gameover-btn-link:hover {
+    background: color-mix(in srgb, var(--color-bg) 12%, transparent);
+    /* Re-assert color so the global `a:hover` rule can't override it */
+    color: var(--color-bg);
+  }
 }
 .lq-gameover-btn-link:active {
   background: color-mix(in srgb, var(--color-bg) 20%, transparent);
@@ -343,9 +394,11 @@ a:hover {
   background: var(--color-surface);
   transition: background 0.15s ease, transform 0.15s ease;
 }
-.lq-logo-card:hover {
-  background: var(--color-accent-100);
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .lq-logo-card:hover {
+    background: var(--color-accent-100);
+    transform: translateY(-2px);
+  }
 }
 
 /* Gameplay keyframe animations */
@@ -475,9 +528,11 @@ a:hover {
   border-color: var(--color-accent);
 }
 
-.btn-primary:hover {
-  background: var(--color-accent-600);
-  color: var(--color-bg);
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: var(--color-accent-600);
+    color: var(--color-bg);
+  }
 }
 
 .btn-secondary {
@@ -486,10 +541,12 @@ a:hover {
   border-color: var(--color-divider);
 }
 
-.btn-secondary:hover {
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-  border-color: var(--color-text);
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .btn-secondary:hover {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    border-color: var(--color-text);
+    color: var(--color-text);
+  }
 }
 
 /* Lowest-emphasis action: no fill, no border until hovered. */
@@ -499,7 +556,9 @@ a:hover {
   border-color: transparent;
 }
 
-.btn-ghost:hover {
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:hover {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    color: var(--color-text);
+  }
 }
