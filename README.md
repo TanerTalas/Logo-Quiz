@@ -228,3 +228,9 @@ Schema changes still need a session that outlives a single transaction. Once `DA
 Designed and coded by **Taner Talas**.
 
 Brand marks from [SimpleIcons](https://simpleicons.org), used under their respective trademark holders' rights for identification purposes.
+
+---
+
+## License
+
+The code is released under the [MIT License](LICENSE). The brand marks are not — they remain the property of their trademark holders and the licence does not extend to them.
