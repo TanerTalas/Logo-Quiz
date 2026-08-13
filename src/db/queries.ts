@@ -240,3 +240,20 @@ export async function getLogoSvg(logoId: number): Promise<string | undefined> {
 
   return row?.svg;
 }
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
+/**
+ * The cheapest read that still proves the database answered: one row, one column.
+ *
+ * Used by the keepalive cron. Supabase pauses a free project after seven days with
+ * no activity, and only real database traffic counts — hitting a cached page does
+ * nothing. A `SELECT 1` would never leave the pooler, so this touches a table.
+ */
+export async function pingDatabase(): Promise<boolean> {
+  const [row] = await db.select({ id: categories.id }).from(categories).limit(1);
+
+  return row !== undefined;
+}
